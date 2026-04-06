@@ -11,8 +11,20 @@ use App\Models\Training;
 
 class TrainerTrainingController extends Controller
 {
-    public function showAllTrainings() {
-        $trainerUserId = Auth::guard('trainer')->id();
+    public function showAllTrainings(Request $request) {
+        $trainer = $this->getAuthenticatedTrainer($request);
+        
+        if (!$trainer) {
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Trainer not found'
+                ], 404);
+            }
+            abort(404, 'Trainer not found');
+        }
+        
+        $trainerUserId = $trainer->id;
         $allTrainings = Training::where('trainer_user_id', $trainerUserId)->get();
 
         $today = now()->startOfDay()->format('Y-m-d');
@@ -21,6 +33,15 @@ class TrainerTrainingController extends Controller
 
         $trainingCategories = TrainingCategory::pluck('name', 'id');
 
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'current_trainings' => $currentTrainings->values(),
+                'old_trainings' => $oldTrainings->values(),
+                'categories' => $trainingCategories,
+            ]);
+        }
+
         return view('trainerUser.allTrainings', [
             'trainings' => $currentTrainings,
             'oldTrainings' => $oldTrainings,
@@ -28,15 +49,40 @@ class TrainerTrainingController extends Controller
         ]);
     }
 
-    public function newTraining() {
+    public function newTraining(Request $request) {
         $trainingCategories = TrainingCategory::pluck('name', 'id');
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'categories' => $trainingCategories,
+            ]);
+        }
         return view('trainerUser.training', ['trainingCategories' => $trainingCategories]);
     }
         
     public function editTraining(Request $request) {
         $trainingId = $request->id;
         $training = Training::find($trainingId);
+
+        if (!$training) {
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Training not found'
+                ], 404);
+            }
+            abort(404, 'Training not found');
+        }
+
         $trainingCategories = TrainingCategory::pluck('name', 'id');
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'training' => $training,
+                'categories' => $trainingCategories,
+            ]);
+        }
 
         return view('trainerUser.training', [
             'training' => $training,
@@ -44,6 +90,8 @@ class TrainerTrainingController extends Controller
         ]);
     }
 
+
+    // For WEB
     public function trainingAction(Request $request) {
         $action = $request->training_action;
         switch ($action) {
@@ -99,5 +147,101 @@ class TrainerTrainingController extends Controller
     private function delete(Request $request) {
         $trainingId = $request->id;
         Training::find($trainingId)->delete();
+    }
+
+
+    // For API
+    public function createTraining(Request $request)
+    {
+        $trainer = $this->getAuthenticatedTrainer($request);
+        
+        if (!$trainer) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Trainer not found'
+            ], 404);
+        }
+
+        $newTraining = $request->only([
+            'name',
+            'time_amount',
+            'description',
+            'price',
+            'start_time',
+            'date',
+            'category_id'
+        ]);
+
+        $newTraining['trainer_user_id'] = $trainer->id;
+        $training = Training::create($newTraining);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Training created successfully',
+            'training' => $training
+        ], 201);
+    }
+
+    public function updateTraining(Request $request)
+    {
+        $id = $request->get('id');
+        $training = Training::find($id);
+
+        if (!$training) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Training not found'
+            ], 404);
+        }
+
+        $updateTraining = $request->only([
+            'name',
+            'time_amount',
+            'description',
+            'price',
+            'start_time',
+            'date',
+            'category_id'
+        ]);
+
+        $training->update($updateTraining);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Training updated successfully',
+            'training' => $training
+        ]);
+    }
+
+    public function deleteTraining(Request $request)
+    {
+        $id = $request->get('id');
+        $training = Training::find($id);
+
+        if (!$training) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Training not found'
+            ], 404);
+        }
+
+        $training->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Training deleted successfully'
+        ]);
+    }
+    
+
+    private function getAuthenticatedTrainer(Request $request)
+    {
+        $trainer = $request->user('sanctum');
+        
+        if (!$trainer) {
+            $trainer = Auth::guard('trainer')->user();
+        }
+        
+        return $trainer;
     }
 }

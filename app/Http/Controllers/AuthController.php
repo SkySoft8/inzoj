@@ -31,6 +31,12 @@ class AuthController extends Controller
         ]);
 
         if ($validator->fails()) {
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'errors' => $validator->errors()
+                ], 422);
+            }
             return redirect()->back()
                 ->withErrors($validator)
                 ->withInput();
@@ -43,6 +49,19 @@ class AuthController extends Controller
 
         Auth::login($user);
 
+        $token = $user->createToken('auth_token')->plainTextToken;
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'token' => $token,
+                'user' => [
+                    'id' => $user->id,
+                    'email' => $user->email,
+                ]
+            ]);
+        }
+        
         return redirect()->route('questionnaire');
     }
 
@@ -54,19 +73,52 @@ class AuthController extends Controller
         ]);
 
         if ($validator->fails()) {
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'errors' => $validator->errors()
+                ], 422);
+            }
             return back()->withErrors($validator)->withInput();
         }
 
-        if (Auth::guard('web')->attempt($request->only('email', 'password'))) {
-            $request->session()->regenerate();
-            
+        if (Auth::attempt($request->only('email', 'password'))) {
             $user = Auth::user();
-            $isPremiumActive = $user->is_premium && $user->premium_until && $user->premium_until > now();
-            session(['is_premium' => $isPremiumActive]);
+            $user->tokens()->delete();
+            $token = $user->createToken('auth_token')->plainTextToken;
+
+            $isPremiumActive = $user->is_premium && $user->premium_until > now();
+            if (!$isPremiumActive) {
+                $user->update([
+                    'is_premium' => false,
+                    'premium_until' => null,
+                ]);
+            }
+
+            if ($request->expectsJson()) {                
+                return response()->json([
+                    'success' => true,
+                    'token' => $token,
+                    'user' => [
+                        'id' => $user->id,
+                        'email' => $user->email,
+                        'name' => $user->name,
+                    ]
+                ]);
+            }            
             
+            $request->session()->regenerate();
+
             return redirect()->route('diary');
         }
 
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Неверный email или пароль.'
+            ], 401);
+        }
+    
         return back()->withErrors([
             'email' => 'Неверный email или пароль.',
         ])->onlyInput('email');
@@ -74,10 +126,23 @@ class AuthController extends Controller
 
     public function logout(Request $request)
     {
+        if (Auth::check()) {
+            $user = Auth::user();
+            $user->tokens()->delete();
+        }
+        
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Logged out successfully'
+            ]);
+        }
+
         Auth::guard('web')->logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();
         
+
         return redirect()->route('user.login');
     }
 }

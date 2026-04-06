@@ -7,6 +7,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
+
 class TargetsController extends Controller
 {
     private $fields = [
@@ -19,9 +20,20 @@ class TargetsController extends Controller
         'steps' => 'Шаги(цель)'
     ];
 
-    public function show()
+    public function show(Request $request)
     {
-        $user = Auth::user();
+        $user_id = $request->get('user_id');
+        $user = User::find($user_id) ?? Auth::user();
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'user' => $user,
+                'fields' => $this->fields,
+                'editing' => false,
+            ]);
+        }
+
         return view('profile.targets', [
             'user' => $user,
             'fields' => $this->fields,
@@ -31,11 +43,28 @@ class TargetsController extends Controller
 
     public function edit(Request $request)
     {
-        $user = Auth::user();
+        $user_id = $request->get('user_id');
+        $user = User::find($user_id) ?? Auth::user();
         $field = $request->get('field');
 
         if (!array_key_exists($field, $this->fields)) {
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Non-existent field'
+                ], 400);
+            }
             return redirect()->route('targets');
+        }
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'user' => $user,
+                'fields' => $this->fields,
+                'editing' => true,
+                'editingField' => $field,
+            ]);
         }
 
         return view('profile.targets', [
@@ -46,12 +75,20 @@ class TargetsController extends Controller
         ]);
     }
 
+
     public function update(Request $request)
     {
-        $user = Auth::user();
-        $field = $request->get('field');
+        $user_id = $request->user_id ?? null;
+        $user = User::find($user_id) ?? Auth::user();
+        $field = $request->get('field') ?? 'water';
 
         if (!array_key_exists($field, $this->fields)) {
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Non-existent field'
+                ], 400);
+            }
             return redirect()->route('targets');
         }
 
@@ -82,6 +119,13 @@ class TargetsController extends Controller
 
         $user->update([$field => $validated['value']]);
 
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Данные обновлены',
+                '_csrf_token' => csrf_token()
+            ]);
+        }
         return redirect()->route('targets');
     }
 

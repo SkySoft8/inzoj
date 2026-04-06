@@ -22,10 +22,10 @@ class MealController extends Controller
         $user = Auth::user();
 
         $mealType = $request->get('meal_type');
-        if (isset($mealType)) {
-            session()->put('meal_type', $mealType);
+        if (!$request->expectsJson() && isset($mealType)) {
+            session(['meal_type' => $mealType]);
         }
-
+        
         $productsOrRecepies = $request->get('productsOrRecepies') ?? 'products';
 
         if ($productsOrRecepies == 'products') {
@@ -46,6 +46,15 @@ class MealController extends Controller
                 } else {
                     $product->is_favorite = false;
                 }
+            }
+
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'products' => $products,
+                    'recepies' => null,
+                    'meal_type' => $mealType
+                ]);
             }
 
             return view('diary.meal', ['products' => $products, 'recepies' => null]);
@@ -69,15 +78,105 @@ class MealController extends Controller
                 }
             }
 
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'products' => null,
+                    'recepies' => $recepies,
+                    'meal_type' => $mealType
+                ]);
+            }
+
             return view('diary.meal', ['products' => null, 'recepies' => $recepies]);            
         }
     }
 
+    public function toggleFavorite(Request $request) {
+        $userId = Auth::user()->id;
+        $productsOrRecepies = $request->get('productsOrRecepies');
+        $isFavorite = $request->get('is_favorite');
+
+        if ($productsOrRecepies == 'products') {
+            $productId = $request->get('product_id');
+            if ($isFavorite == false) {
+                UserFavoriteProduct::create([
+                    'user_id' => $userId,
+                    'product_id' => $productId
+                ]);
+            } elseif ($isFavorite == true) {
+                UserFavoriteProduct::where([
+                    'user_id' => $userId,
+                    'product_id' => $productId
+                ])->delete();    
+            }
+
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => $isFavorite ? 'Product removed from favorites' : 'Product added to favorites',
+                    'is_favorite' => !$isFavorite
+                ]);
+            }
+            return redirect()->route('meal');
+
+        } elseif ($productsOrRecepies == 'recepies') {
+            $recepieId = $request->get('recepie_id');
+            if ($isFavorite == false) {
+                UserFavoriteRecepie::create([
+                    'user_id' => $userId,
+                    'recepie_id' => $recepieId
+                ]);
+            } elseif ($isFavorite == true) {
+                UserFavoriteRecepie::where([
+                    'user_id' => $userId,
+                    'recepie_id' => $recepieId
+                ])->delete();    
+            }
+
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => $isFavorite ? 'Recepie removed from favorites' : 'Recepie added to favorites',
+                    'is_favorite' => !$isFavorite
+                ]);
+            }
+            return redirect()->route('meal');
+        }
+        return redirect()->route('meal');
+    }
+
+    public function showFilter(Request $request) {
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'filters' => [
+                    'meal_types' => ['breakfast', 'lunch', 'dinner', 'snack'],
+                    'components' => ['poultry', 'meat', 'fish', 'vegetables', 'fruits', 'sweet'],
+                    'cooking_methods' => ['boiled', 'steamed', 'fried', 'stew', 'baked', 'basic'],
+                    'diets' => ['vegetarian', 'vegan', 'low_fat', 'lots_of_fiber', 'low_carb', 'keto_diet', 'high_protein', 'lactose_free']
+                ]
+            ]);
+        }
+        return view('diary.filters');
+    }
+
     public function filterApply(Request $request) {
-        $mealType = $request->get('meal_type') ?? null;
-        $component = $request->get('component') ?? null;
-        $cookingMethod = $request->get('cooking_method') ?? null;
-        $diet = $request->get('diet') ?? null;
+        $mealType = $request->get('meal_type', []);
+        if (!is_array($mealType)) {
+            $mealType = [$mealType];
+        }
+        $component = $request->get('component', []);
+        if (!is_array($component)) {
+            $component = [$component];
+        }
+        $cookingMethod = $request->get('cooking_method', []);
+        if (!is_array($cookingMethod)) {
+            $cookingMethod = [$cookingMethod];
+        }
+        $diet = $request->get('diet', []);
+        if (!is_array($diet)) {
+            $diet = [$diet];
+        }
 
         $allFilters = [
             RecepieMealType::class => [$mealType, 'meal_type'],
@@ -100,16 +199,29 @@ class MealController extends Controller
         }
         
         $uniqueIds = array_unique($correctIds);
-        $recepies = [];
 
-        $recepies = Recepie::whereIn('id', $uniqueIds)
-            ->limit(6)
-            ->get();
+        if (empty($uniqueIds) && empty($mealType) && empty($component) && empty($cookingMethod) && empty($diet)) {
+            $recepies = Recepie::limit(6)->get();
+        } else {
+            $recepies = Recepie::whereIn('id', $uniqueIds)->limit(6)->get();
+        }
         
         if (count($recepies) == 0) {
             $recepies = null;
-        }        
-        // $recepies = Recepie::limit(6)->get();
+        }
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'products' => null,
+                'recepies' => $recepies,
+                'meal_type' => $mealType,
+                'component' => $component,
+                'cooking_method' => $cookingMethod,
+                'diet' => $diet
+            ]);
+        }
+
         return view('diary.meal', [
             'products' => null,
             'recepies' => $recepies,

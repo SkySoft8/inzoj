@@ -18,30 +18,25 @@ use Illuminate\Support\Facades\Auth;
 class ProductController extends Controller
 {
     public function show (Request $request) {
-        $productId = $this->getData($request)[2];
-        $product = Product::where('id', $productId)->first();
-        $isFavorite = $request->get('is_favorite');
-        $action = $request->get('action');
+        [$userId, $diaryNoteId, $productId, $mealType, $amount, $userMealId] = $this->getData($request);
 
-        if ($action == 'toggle_favorite') {
-            if ($isFavorite == false) {
-                UserFavoriteProduct::create([
-                    'user_id' => $this->getData($request)[0],
-                    'product_id' => $productId
-                ]);
-            } elseif ($isFavorite == true) {
-                UserFavoriteProduct::where([
-                    'user_id' => $this->getData($request)[0],
-                    'product_id' => $productId
-                ])->delete();
-    
-            }
-            return redirect()->route('meal');
+        $product = Product::where('id', $productId)->first();
+
+        if (!$product && $request->expectsJson()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Product not found'
+            ], 404);
         }
 
-        $amount = $this->getData($request)[4];
-        if ($request->has('meal_type')) {
-            session(['meal_type' => $request->get('meal_type')]);
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'product' => $product,
+                'amount' => $amount,
+                'diary_note_id' => $diaryNoteId,
+                'user_meal_id' => $userMealId
+            ]);
         }
 
         return view('diary.product', [
@@ -53,7 +48,7 @@ class ProductController extends Controller
     public function addMealProduct (Request $request) {
         [$userId, $diaryNoteId, $productId, $mealType, $amount] = $this->getData($request);
 
-        UserMeal::create([
+        $userMeal = UserMeal::create([
             'user_id' => $userId,
             'diary_note_id' => $diaryNoteId,
             'product_id' => $productId,
@@ -61,7 +56,9 @@ class ProductController extends Controller
             'amount' => $amount
         ]);
 
-        return $this->recount($userId, $diaryNoteId);
+        $userMealId = $userMeal->id;
+
+        return $this->recount($userId, $diaryNoteId, true, $request, $userMealId);
     }
 
     public function updateMealProduct(Request $request) {
@@ -72,10 +69,10 @@ class ProductController extends Controller
 
         [$userId, $diaryNoteId] = $this->getData($request);
 
-        return $this->recount($userId, $diaryNoteId);
+        return $this->recount($userId, $diaryNoteId, false, $request, $userMealId);
     }
 
-    private function recount($userId, $diaryNoteId) {
+    private function recount($userId, $diaryNoteId, $adding, $request, $userMealId) {
         $currentMeals = UserMeal::where('user_id', $userId)
             ->where('diary_note_id', $diaryNoteId)
             ->get();
@@ -113,21 +110,32 @@ class ProductController extends Controller
             'current_carbs' => $newData['carbs']
         ]);
 
+        if ($request->expectsJson()) {           
+            return response()->json([
+                'success' => true,
+                'message' => $adding ? 'Product added to meal successfully' : 'Product amount updated successfully',
+                'user_meal_id' => $userMealId,
+                'diary_note_id' => $diaryNoteId
+            ]);
+        }
+
         return redirect()->route('diary');
     }
 
     private function getData(Request $request) {
         $userId = Auth::user()->id;
-        $diaryNoteId = session('diary_note_id');
-        $mealType = session('meal_type');
 
-        $userMealId = session('user_meal_id');
+        $diaryNoteId = $request->get('diary_note_id') ?? session('diary_note_id');
+        $userMealId = $request->get('user_meal_id') ?? session('user_meal_id');
+
         if ($userMealId) {
             $userMeal = UserMeal::find($userMealId);
             $productId = $userMeal->product_id;
+            $mealType = $userMeal->meal_type;
             $amount = $userMeal->amount;
         } else {
             $productId = $request->get('product_id');
+            $mealType = $request->get('meal_type') ?? session('meal_type');
             $amount = $request->get('amount');
         }
 

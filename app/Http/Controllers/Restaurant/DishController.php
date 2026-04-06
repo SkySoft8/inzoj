@@ -16,29 +16,56 @@ use Illuminate\Support\Facades\Auth;
 class DishController extends Controller
 {
     public function show(Request $request) {
-        $dishId = $this->getData($request)[2];
+        [$userId, $diaryNoteId, $dishId, $proteins, $fats, $carbs, $calories, $userMealId] = $this->getData($request);
+
         $dish = Dish::find($dishId);
+        
+        if (!$dish && $request->expectsJson()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Dish not found'
+            ], 404);
+        }
 
         $nutrients = [
-            $this->getData($request)[3],
-            $this->getData($request)[4], 
-            $this->getData($request)[5],
-            $this->getData($request)[6]
+            $proteins, 
+            $fats,
+            $carbs,
+            $calories
         ];
 
-        $amount = $request->get('amount') ?? null;
+        $adding = $userMealId !== null ? false : true;
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'dish' => $dish,
+                'nutrients' => $nutrients,
+                'adding' => $adding,
+                'diary_note_id' => $diaryNoteId,
+                'user_meal_id' => $userMealId
+            ]);
+        }
 
         return view('restaurant.dish', [
             'dish' => $dish,
             'nutrients' => $nutrients,
-            'amount' => $amount
+            'adding' => $adding,
         ]);
     }
 
     public function addToDiary(Request $request) {
-        [$userId, $diaryNoteId, $dishId] = $this->getData($request);
+        [$userId, $diaryNoteId, $dishId, $proteins, $fats, $carbs, $calories, $userMealId] = $this->getData($request);
 
         $dish = Dish::find($dishId);
+
+        if (!$dish && $request->expectsJson()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Dish not found'
+            ], 404);
+        }        
+
         $dishWeight = $dish->weight;
         $mealType = $request->get('meal_type');
 
@@ -50,23 +77,37 @@ class DishController extends Controller
             'amount' => $dishWeight
         ]);
 
-        return $this->recount($userId, $diaryNoteId);
+        $newUserMealId = $user_meal->id;
+
+        return $this->recount($userId, $diaryNoteId, $request, $newUserMealId);
     }
 
     public function deleteFromDiary(Request $request) {
-        [$userId, $diaryNoteId, $dishId] = $this->getData($request);
-        $mealType = $request->get('meal_type');
+        [$userId, $diaryNoteId, $dishId, $proteins, $fats, $carbs, $calories, $userMealId] = $this->getData($request);        
 
-        UserMeal::where('user_id', $userId)
-            ->where('diary_note_id', $diaryNoteId)
-            ->where('dish_id', $dishId)
-            ->where('meal_type', $mealType)
-            ->delete();
+        $userMeal = UserMeal::find($userMealId);
+
+        if (!$userMeal && $request->expectsJson()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'User meal not found'
+            ], 404);
+        }
+
+        $userMeal->delete();
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Dish removed from diary successfully',
+                'diary_note_id' => $diaryNoteId
+            ]);
+        }        
             
         return redirect()->route('diary');
     }
 
-    private function recount($userId, $diaryNoteId) {
+    private function recount($userId, $diaryNoteId, $request, $userMealId) {
         $currentMeals = UserMeal::where('user_id', $userId)
             ->where('diary_note_id', $diaryNoteId)
             ->get();
@@ -97,36 +138,63 @@ class DishController extends Controller
             }
         }
 
-        DiaryNote::find($diaryNoteId)->update([
+        $diaryNote = DiaryNote::find($diaryNoteId);
+        
+        if (!$diaryNote) {
+            if ($request && $request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Diary note not found'
+                ], 404);
+            }
+            return redirect()->route('diary')->with('error', 'Diary note not found');
+        }        
+        
+        $diaryNote->update([
             'current_calories' => $newData['calories'],
             'current_proteins' => $newData['proteins'],
             'current_fats' => $newData['fats'],
             'current_carbs' => $newData['carbs']
         ]);
 
+        if ($request && $request->expectsJson()) {           
+            return response()->json([
+                'success' => true,
+                'message' => 'Dish added to diary successfully',
+                'user_meal_id' => $userMealId,
+                'diary_note_id' => $diaryNoteId,
+                'nutrition' => $newData
+            ]);
+        }        
+
         return redirect()->route('diary');
     }
 
     private function getData(Request $request) {
         $userId = Auth::user()->id;
-        $diaryNoteId = session('diary_note_id');
-        $dishId = $request->get('dish_id');
+        $diaryNoteId = $request->get('diary_note_id') ?? session('diary_note_id');
+        $userMealId = $request->get('user_meal_id') ?? session('user_meal_id');
 
+        $dishId = $request->get('dish_id') ?? UserMeal::find($userMealId)->dish_id;
         $dish = Dish::find($dishId);
-        $ratio = $dish->weight / 100;
-        [
-            $current_calories, 
-            $current_proteins, 
-            $current_fats, 
-            $current_carbs
-        ] = [
-            $dish->calories * $ratio,
-            $dish->proteins * $ratio,
-            $dish->fats * $ratio,
-            $dish->carbs * $ratio
-        ];
+        
+        if ($dish) {
+            $ratio = $dish->weight / 100;
+            [
+                $current_calories, 
+                $current_proteins, 
+                $current_fats, 
+                $current_carbs
+            ] = [
+                $dish->calories * $ratio,
+                $dish->proteins * $ratio,
+                $dish->fats * $ratio,
+                $dish->carbs * $ratio
+            ];
+        } else {
+            $current_calories = $current_proteins = $current_fats = $current_carbs = 0;
+        }
 
-
-        return [$userId, $diaryNoteId, $dishId, $current_proteins, $current_fats, $current_carbs, $current_calories];
+        return [$userId, $diaryNoteId, $dishId, $current_proteins, $current_fats, $current_carbs, $current_calories, $userMealId];
     }
 }

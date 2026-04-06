@@ -18,35 +18,29 @@ use Illuminate\Support\Facades\Auth;
 class RecepieController extends Controller
 {
     public function show (Request $request) {
-        $previousUrl = url()->previous();
-        $recepieId = $this->getData($request)[2];
+        [$userId, $diaryNoteId, $recepieId, $mealType, $amount, $userMealId] = $this->getData($request);        $previousUrl = url()->previous();
+
         $recepie = Recepie::where('id', $recepieId)->first();
+        if (!$recepie && $request->expectsJson()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Recipe not found'
+            ], 404);
+        }
+
         $ingredients = RecepieIngredient::where('recepie_id', $recepieId)->get();
-
-        $isFavorite = $request->get('is_favorite');
-        $action = $request->get('action');
-
-        if ($action == 'toggle_favorite') {
-            if ($isFavorite == false) {
-                UserFavoriteRecepie::create([
-                    'user_id' => $this->getData($request)[0],
-                    'recepie_id' => $recepieId
-                ]);    
-            } elseif ($isFavorite == true) {
-                UserFavoriteRecepie::where([
-                    'user_id' => $this->getData($request)[0],
-                    'recepie_id' => $recepieId
-                ])->delete();
-    
-            }
-            return redirect()->route('meal');
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'recepie' => $recepie,
+                'ingredients' => $ingredients,
+                'amount' => $amount,
+                'diary_note_id' => $diaryNoteId,
+                'user_meal_id' => $userMealId
+            ]);
         }
 
-        $amount = $request->get('amount') ?? null;
-        if ($request->has('meal_type')) {
-            session(['meal_type' => $request->get('meal_type')]);
-        }
-
+        $previousUrl = url()->previous();
         return view('diary.recepie', [
             'recepie' => $recepie,
             'ingredients' => $ingredients,
@@ -59,7 +53,7 @@ class RecepieController extends Controller
     public function addMealRecepie (Request $request) {
         [$userId, $diaryNoteId, $recepieId, $mealType, $amount] = $this->getData($request);
 
-        $user_meal = UserMeal::create([
+        $userMeal = UserMeal::create([
             'user_id' => $userId,
             'diary_note_id' => $diaryNoteId,
             'recepie_id' => $recepieId,
@@ -67,23 +61,24 @@ class RecepieController extends Controller
             'amount' => $amount
         ]);
 
-        return $this->recount($userId, $diaryNoteId);
+        $userMealId = $userMeal->id;
+
+        return $this->recount($userId, $diaryNoteId, true, $request, $userMealId);
     }
 
     public function updateMealRecepie(Request $request) {
-        [$userId, $diaryNoteId, $recepieId, $mealType, $amount] = $this->getData($request);
+        $userMealId = $this->getData($request)[5];
+        $amount = $request->get('amount');
 
-        $user_meal = UserMeal::where('user_id', $userId)
-            ->where('diary_note_id', $diaryNoteId)
-            ->where('recepie_id', $recepieId)
-            ->where('meal_type', $mealType)
-            ->update(['amount' => $amount]);
+        $user_meal = UserMeal::find($userMealId)->update(['amount' => $amount]);
 
-        return $this->recount($userId, $diaryNoteId);
+        [$userId, $diaryNoteId] = $this->getData($request);
+
+        return $this->recount($userId, $diaryNoteId, false, $request, $userMealId);
     }
 
 
-    private function recount($userId, $diaryNoteId) {
+    private function recount($userId, $diaryNoteId, $adding, $request, $userMealId) {
         $currentMeals = UserMeal::where('user_id', $userId)
             ->where('diary_note_id', $diaryNoteId)
             ->get();
@@ -114,23 +109,61 @@ class RecepieController extends Controller
             }
         }
 
-        DiaryNote::find($diaryNoteId)->update([
+        $diaryNote = DiaryNote::find($diaryNoteId);
+
+        if (!$diaryNote) {
+            if ($request && $request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Diary note not found'
+                ], 404);
+            }
+            return redirect()->route('diary')->with('error', 'Diary note not found');
+        }    
+
+        $diaryNote->update([
             'current_calories' => $newData['calories'],
             'current_proteins' => $newData['proteins'],
             'current_fats' => $newData['fats'],
             'current_carbs' => $newData['carbs']
         ]);
 
+        $diaryNote->update([
+            'current_calories' => $newData['calories'],
+            'current_proteins' => $newData['proteins'],
+            'current_fats' => $newData['fats'],
+            'current_carbs' => $newData['carbs']
+        ]);
+
+        if ($request && $request->expectsJson()) {           
+            return response()->json([
+                'success' => true,
+                'message' => $adding ? 'Recipe added to meal successfully' : 'Recipe amount updated successfully',
+                'user_meal_id' => $userMealId,
+                'diary_note_id' => $diaryNoteId
+            ]);
+        }
+
         return redirect()->route('diary');
     }
 
     private function getData(Request $request) {
         $userId = Auth::user()->id;
-        $diaryNoteId = session('diary_note_id');
-        $recepieId = $request->get('recepie_id');
-        $mealType = session('meal_type');
-        $amount = $request->get('amount');
 
-        return [$userId, $diaryNoteId, $recepieId, $mealType, $amount];
+        $diaryNoteId = $request->get('diary_note_id') ?? session('diary_note_id');
+        $userMealId = $request->get('user_meal_id') ?? session('user_meal_id');
+
+        if ($userMealId) {
+            $userMeal = UserMeal::find($userMealId);
+            $recepieId = $userMeal->recepie_id;
+            $mealType = $userMeal->meal_type;
+            $amount = $userMeal->amount;
+        } else {
+            $recepieId = $request->get('recepie_id');
+            $mealType = $request->get('meal_type') ?? session('meal_type');
+            $amount = $request->get('amount');
+        }
+
+        return [$userId, $diaryNoteId, $recepieId, $mealType, $amount, $userMealId];
     }
 }

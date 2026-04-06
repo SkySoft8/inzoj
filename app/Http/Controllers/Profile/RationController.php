@@ -81,10 +81,20 @@ class RationController extends Controller
         return implode(', ', $customAllergies);
     }
 
-    public function show()
+    public function show(Request $request)
     {
         $user = Auth::user();
         
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'user' => $user,
+                'all_allergies' => $this->getAllAllergies(),
+                'food_preferences' => $user->food_preferences,
+                'userAllergies' => $this->getAllergiesArray($user->allergies),
+            ]);
+        }
+
         return view('profile.ration', [
             'user' => $user,
             'all_allergies' => $this->getAllAllergies(),
@@ -120,7 +130,15 @@ class RationController extends Controller
             'allergies' => $this->getAllergiesString($allAllergies),
             'food_preferences' => $new_food_preferences
         ]);
-        
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Данные обновлены',
+                '_csrf_token' => csrf_token()
+            ]);
+        }
+
         return redirect()->route('ration');
     }
 }

@@ -14,21 +14,28 @@ class PremiumController extends Controller
         'yearly' => 365
     ];
 
+    public function show(Request $request) {
+        return view('profile.premium');
+    }
+
     public function purchase(Request $request)
     {
-        $request->validate([
+        $validated = $request->validate([
             'plan' => 'required|in:quarterly,yearly'
         ]);
 
         $user = Auth::user();
         $plan = $request->input('plan');
 
-        if ($plan == '') {
-            return back()->with('error', 'Выберите один из доступных вариантов!');
-        }
 
-        // Проверяем не активна ли уже подписка
         if ($user->is_premium && $user->premium_until > now()) {
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Premium subscription is already active',
+                    'premium_until' => $user->premium_until
+                ], 400);
+            }            
             return back()->with('error', 'У вас уже активна премиум подписка!');
         }
 
@@ -44,36 +51,30 @@ class PremiumController extends Controller
                 'premium_until' => $premiumUntil
             ]);
 
-            session(['is_premium' => true]);
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Premium subscription activated successfully',
+                    'plan' => $plan,
+                    'premium_until' => $premiumUntil
+                ]);
+            }            
 
             return redirect()->route('profile');
+        }
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Payment processing failed'
+            ], 500);
         }
 
         return back()->with('error', 'Ошибка при обработке платежа');
     }
 
-    /**
-     * Проверка активности премиум подписки
-     */
-    public function checkPremiumStatus()
-    {
-        $user = Auth::user();
-        
-        // Автоматически снимаем премиум если срок истек
-        if ($user->is_premium && $user->premium_until > now()) {
-            $user->update(['is_premium' => false]);
-        }
-
-        $isPremium = $user->is_premium;
-        session(['is_premium' => $isPremium]);
-
-        return redirect()->route('profile');
-    }
-
     private function processPayment(string $plan): bool
     {
-        // В реальном приложении здесь будет интеграция с платежной системой
-        // Пока всегда возвращаем true для демо
         return true;
     }
 }

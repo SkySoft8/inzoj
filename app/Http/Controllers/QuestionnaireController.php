@@ -42,6 +42,15 @@ class QuestionnaireController extends Controller
             'activity_level' => $user->activity_level,
         ];
 
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'step' => $step,
+                'data' => $data,
+                'steps' => $steps
+            ]);
+        }        
+
         return view('profile.questionnaire', compact('step', 'data'));
     }
 
@@ -82,6 +91,19 @@ class QuestionnaireController extends Controller
             $nextStep = $steps[$currentIndex + 1];
         } else {
             $nextStep = $currentStep;
+        }
+
+        if ($request->expectsJson()) {
+            $isComplete = ($action === 'next' && $currentStep === 'activity');
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Step completed successfully',
+                'next_step' => $isComplete ? null : $nextStep,
+                'is_complete' => $isComplete,
+                'redirect_to' => $isComplete ? '/api/diary' : null,
+                'user' => $user
+            ]);
         }
 
         if ($action === 'next' && $currentStep === 'activity') {

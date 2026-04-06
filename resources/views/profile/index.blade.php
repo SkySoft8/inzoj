@@ -5,7 +5,7 @@
     <h2 class="text-center text-3xl font-extrabold">Профиль</h2>
 
     <div class="bg-white rounded-lg p-4 gap-2 flex flex-col">
-        @if(!session('is_premium'))
+        @if(!Auth::user()->is_premium)
             <a href="{{ route('premium') }}" class="rounded flex justify-start py-1 px-3 font-medium bg-white border">
                 Улучшить
             </a>

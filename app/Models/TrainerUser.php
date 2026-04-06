@@ -3,11 +3,12 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Laravel\Sanctum\HasApiTokens;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 
 class TrainerUser extends Authenticatable
 {
-    use HasFactory;
+    use HasFactory, HasApiTokens;
     
     protected $table = 'trainer_users';
     

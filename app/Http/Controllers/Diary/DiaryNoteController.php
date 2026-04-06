@@ -72,8 +72,12 @@ class DiaryNoteController extends Controller
         } else {
             $noteData['left_calories'] = null;
         }
-        session()->put('diary_note_id', $noteData->id);
-
+        if (!$request->expectsJson()) {
+            session()->put('diary_note_id', $noteData->id);
+            if (session()->has('user_meal_id')) {
+                session()->forget('user_meal_id');
+            }
+        }
 
         $mealTypes = [
             'breakfast' => 'Завтрак',
@@ -97,8 +101,7 @@ class DiaryNoteController extends Controller
                     'fats' => 0,
                     'carbs' => 0,
                     'calories' => 0,
-                    'products' => [],
-                    'productAmount' => 0
+                    'food' => [],
                 ];
 
                 foreach ($userMeals[$type] as $currentMeal) {
@@ -124,9 +127,9 @@ class DiaryNoteController extends Controller
                     $userMealData[$type]['carbs'] += round($item->carbs * $ratio, 1);
                     $userMealData[$type]['calories'] += round($item->calories * $ratio, 1);
                     $userMealData[$type]['food'][] = [
+                        'user_meal_id' => $currentMeal->id,
                         'item' => $item,
                         'item_type' => $itemType,
-                        'user_meal_id' => $currentMeal->id,
                         'amount' => $currentMeal->amount
                     ];
                 }
@@ -137,19 +140,31 @@ class DiaryNoteController extends Controller
             ->where('diary_note_id', $noteData->id)
             ->get();
 
+        $userActivityData = [];
         if ($allUserActivities != []) {
-            $userActivityData = [];
             foreach ($allUserActivities as $userActivity) {
                 $training = Activity::find($userActivity->activity_id);
                 $trainingName = $training->name;
-                $userActivityData[$trainingName] = $userActivity;
+                $userActivityData[] = [
+                    'name' => $trainingName,
+                    'activity' => $userActivity
+                ];
             }
         }
-        
-        if (session('user_meal_id') !== null){
-            session()->forget('user_meal_id');
+
+        if ($request->expectsJson()) {        
+            return response()->json([
+                'success' => true,
+                'diary_note_id' => $noteData->id,
+                'date' => isset($currentDate) ? substr($currentDate, 0, 10) : $date,
+                'isset_days' => $issetDays,
+                'note_data' => $noteData,
+                'meal_types' => $mealTypes,
+                'user_meals' => $userMealData,
+                'user_activities' => $userActivityData,
+            ]);
         }
-        
+
         return view('diary.index', [
             'user' => $user,
             'date' => isset($currentDate) ? substr($currentDate, 0, 10) : $date,
@@ -164,27 +179,51 @@ class DiaryNoteController extends Controller
     public function redirection(Request $request) {
         $userMealId = $request->get('user_meal_id');
         $itemType = $request->get('item_type');
-        
         $userMeal = UserMeal::find($userMealId);
+
+        if (!$userMeal) {
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'User meal not found'
+                ], 404);
+            }
+            abort(404, 'User meal not found');
+        }
+
         $mealType = $userMeal->meal_type;
 
-        if (session('meal_type') !== null) {
-            session(['meal_type' => $mealType]);
-        } else {
-            session()->put('meal_type', $mealType);
+        if ($request->expectsJson()) {
+            $routes = [
+                'product' => 'product',
+                'recepie' => 'recepie',
+                'dish' => 'dish'
+            ];
+            
+            $routeName = $routes[$itemType] ?? null;
+            
+            return response()->json([
+                'success' => true,
+                'redirect_to' => $routeName,
+                'params' => [
+                    'user_meal_id' => $userMealId,
+                    'meal_type' => $mealType
+                ],
+                'item_type' => $itemType,
+                'message' => "Redirect to edit $itemType"
+            ]);
         }
+
 
         switch ($itemType) {
             case 'product':
-                if (session('user_meal_id') !== null){
-                    session(['user_meal_id' => $userMealId]);
-                } else {
-                    session()->put('user_meal_id', $userMealId);
-                }
-                return redirect()->route('product');
+                session(['user_meal_id' => $userMealId]);
+                return redirect()->route('product', ['user_meal_id' => $userMealId]);
             case 'recepie':
+                session(['user_meal_id' => $userMealId]);
                 return redirect()->route('recepie', ['user_meal_id' => $userMealId]);
             case 'dish':
+                session(['user_meal_id' => $userMealId]);
                 return redirect()->route('dish', ['user_meal_id' => $userMealId]);
         }
     }

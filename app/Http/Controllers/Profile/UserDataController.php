@@ -16,9 +16,18 @@ class UserDataController extends Controller
         'gender' => 'Пол'
     ];
 
-    public function show()
+    public function show(Request $request)
     {
-        $user = Auth::user();
+        $user = Auth::user();    
+        
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'user' => $user,
+                'fields' => $this->fields,
+                'editing' => false
+            ]);
+        }        
         return view('profile.userData', [
             'user' => $user,
             'fields' => $this->fields,
@@ -32,7 +41,24 @@ class UserDataController extends Controller
         $field = $request->get('field');
 
         if (!array_key_exists($field, $this->fields)) {
+            if ($request->expectsJson()) {
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Non-existent field'
+                ], 400);
+            }        }
             return redirect()->route('userData');
+        }
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'user' => $user,
+                'fields' => $this->fields,
+                'editing' => true,
+                'editingField' => $field,
+            ]);
         }
 
         return view('profile.userData', [
@@ -49,6 +75,12 @@ class UserDataController extends Controller
         $field = $request->get('field');
 
         if (!array_key_exists($field, $this->fields)) {
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Non-existent field'
+                ], 400);
+            }        
             return redirect()->route('userData');
         }
 
@@ -72,6 +104,14 @@ class UserDataController extends Controller
 
         $user->update([$field => $validated['value']]);
 
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Данные обновлены',
+                '_csrf_token' => csrf_token()
+            ]);
+        }
+        
         return redirect()->route('userData');
     }
 }

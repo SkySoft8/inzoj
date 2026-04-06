@@ -24,10 +24,10 @@
         </div>
     </div>
     
-    <form method="POST" action="{{ $amount !== null ? route('dish.delete') : route('dish.add') }}">
+    <form method="POST" action="{{ $adding == false ? route('dish.delete') : route('dish.add') }}">
         @csrf
         <input type="hidden" name="dish_id" value="{{ $dish->id }}">
-        @if ($amount !== null)
+        @if ($adding == false)
         <button class="bg-red-600 text-white font-bold p-2 rounded-md w-full mt-1">Удалить из дневника</button>
         @else
             <p class="font-medium">Какой прием пищи?</p>
@@ -47,6 +47,6 @@
         @endif
     </form>
 
-    <a href="{{ $amount !== null ? route('diary') : route('restaurant') }}" class="text-red-600">Назад</a>
+    <a href="{{ $adding == false ? route('diary') : route('restaurant') }}" class="text-red-600">Назад</a>
 </div>
 @endsection

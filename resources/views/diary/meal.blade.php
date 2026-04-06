@@ -26,12 +26,17 @@
         @foreach ($products as $product)
             <form action="{{ route('product') }}" class="flex gap-2 justify-between bg-gray-200 rounded p-2">
                 <input type="hidden" name="product_id" value="{{ $product->id }}">
-                <input type="hidden" name="is_favorite" value="{{ $product->is_favorite ? true : false }}">
-                <button type="submit" name="action" value="show" class="flex gap-4">
+                <button type="submit" class="flex gap-4">
                     <p>{{ $product->name }}</p>
                     <p>{{ $product->calories }} ккал</p>
                 </button>
-                <button type="submit" name="action" value="toggle_favorite">{{ $product->is_favorite ? "❤" : "♡" }}</button>
+            </form>
+            <form method="POST" action="{{ route('meal.toggleFavorite') }}" class="flex gap-2 justify-between bg-gray-200 rounded p-2">
+                @csrf
+                <input type="hidden" name="product_id" value="{{ $product->id }}">
+                <input type="hidden" name="is_favorite" value="{{ $product->is_favorite ? true : false }}">
+                <input type="hidden" name="productsOrRecepies" value="products">
+                <button type="submit">{{ $product->is_favorite ? "❤" : "♡" }}</button>
             </form>
         @endforeach
     @elseif ($recepies)
@@ -45,7 +50,6 @@
             @foreach ($recepies as $recepie)
                 <form action="{{ route('recepie') }}">
                     <input type="hidden" name="recepie_id" value="{{ $recepie->id }}">
-                    <input type="hidden" name="is_favorite" value="{{ $recepie->is_favorite ? true : false }}">
                     <button type="submit" name="action" value="show" class="flex flex-col bg-gray-300 rounded-lg">
                         <img src="{{ $recepie->image }}" class="rounded-lg">
                         <div class="flex flex-col gap-1 p-2">
@@ -53,6 +57,12 @@
                             <p>БЖУ: {{ $recepie->proteins }}  {{ $recepie->fats }}  {{ $recepie->carbs }}</p>
                         </div>
                     </button>
+                </form>
+                <form method="POST" action="{{ route('meal.toggleFavorite') }}">
+                    @csrf
+                    <input type="hidden" name="recepie_id" value="{{ $recepie->id }}">
+                    <input type="hidden" name="is_favorite" value="{{ $recepie->is_favorite ? true : false }}">
+                    <input type="hidden" name="productsOrRecepies" value="recepies">
                     <button type="submit" name="action" value="toggle_favorite">{{ $recepie->is_favorite ? "❤" : "♡" }}</button>
                 </form>
             @endforeach

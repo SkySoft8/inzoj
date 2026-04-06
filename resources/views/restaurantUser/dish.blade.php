@@ -3,7 +3,7 @@
 @section('content')
 <div class="gap-4 w-96 flex flex-col">
     <img src="https://img.iamcook.ru/old/upl/recipes/cat/u-04391b7e3f5adfaa6ac7f554740fa12f.jpg">
-    <form method="POST" action="{{ route('restaurantUser.dishAction') }}" class="flex flex-col items-start gap-2">
+    <form method="POST" action="{{ route('restaurantUser.updateDish') }}" class="flex flex-col items-start gap-2">
         @csrf
         <input type="hidden" name="dish_id" value="{{ $dish->id }}">
 
@@ -48,9 +48,13 @@
         </div>
     
         <div class="w-full flex flex-col mt-4">
-            <button name="action" value="update" class="bg-indigo-600 text-white font-bold p-2 rounded-md w-full mt-1">Сохранить</button>
-            <button name="action" value="delete" class="bg-red-600 text-white font-bold p-2 rounded-md w-full mt-1">Удалить из меню</button>
+            <button class="bg-indigo-600 text-white font-bold p-2 rounded-md w-full mt-1">Сохранить</button>
         </div>
+    </form>
+
+    <form action="{{ route('restaurantUser.deleteDish') }}" class="flex flex-col items-start gap-2">
+        <input type="hidden" name="dish_id" value="{{ $dish->id }}">
+        <button class="bg-red-600 text-white font-bold p-2 rounded-md w-full mt-1">Удалить из меню</button>
     </form>
 
     <a href="{{ route('restaurantUser.menu') }}" class="text-red-600">Назад</a>

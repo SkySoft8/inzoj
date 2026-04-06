@@ -1,0 +1,22 @@
+
+   Error 
+
+  Call to undefined function yoganandgopalan\LaravelSwagger\starts_with()
+
+  at vendor\yoganandgopalan\laravel-swagger\src\Generator.php:133
+    129▕     protected function getRouteUri(Route $route)
+    130▕     {
+    131▕         $uri = $route->uri();
+    132▕ 
+  ➜ 133▕         if (!starts_with($uri, '/')) {
+    134▕             $uri = '/' . $uri;
+    135▕         }
+    136▕ 
+    137▕         return $uri;
+
+  1   vendor\yoganandgopalan\laravel-swagger\src\Generator.php:43
+      yoganandgopalan\LaravelSwagger\Generator::getRouteUri(Object(Illuminate\Routing\Route))
+
+  2   vendor\yoganandgopalan\laravel-swagger\src\GenerateSwaggerDoc.php:36
+      yoganandgopalan\LaravelSwagger\Generator::generate()
+

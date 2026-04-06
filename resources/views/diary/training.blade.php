@@ -9,26 +9,27 @@
     </div>
 
     @php
-        $timeCount = explode(' ', $training->time)[0];
+    if (!isset($timeCount)) { $timeCount = explode(' ', $training->time)[0]; }
     @endphp
 
-    <form method="POST" action="{{ route('training.add') }}" class="flex flex-col gap-2 w-full">
+    <form method="POST" action="{{ $adding ? route('training.add') : route('training.update') }}" class="flex flex-col gap-2 w-full">
         @csrf
         <input type="hidden" name="training_id" value="{{ $training->id }}">
-        <label class="flex gap-1"><input type="number" name="calories" min="20" max="3000" value="{{ $training->calories }}"
+        <input type="hidden" name="user_activity_id" value="{{ $userActivityId }}">
+        <label class="flex gap-1"><input type="number" name="calories" min="20" max="3000" value="{{ $calories ?? $training->calories }}"
             class="w-full border border-indigo-600 rounded-md p-1" required>ккал
         </label>
         <label class="flex gap-1">
             <input type="number" name="time_count" min="1" max="1000" value="{{ $timeCount }}"
                 class="w-full border border-indigo-600 rounded-md p-1" required>
             <select name="time_type">
-                <option value="minute">мин</option>
-                <option value="hour">ч</option>
+                <option value="minute" {{ $timeType == 'minute' ? 'selected' : '' }}>мин</option>
+                <option value="hour" {{ $timeType == 'hour' ? 'selected' : '' }}>ч</option>
             </select>
         </label>
         <button class="bg-indigo-600 text-white font-bold p-2 rounded-md w-full">Сохранить</button>
     </form>
 
-    <a href="{{ route('activity') }}" class="text-red-600">Назад</a>
+    <a href="{{ $adding ? route('activity') : route('diary') }}" class="text-red-600">Назад</a>
 </div>
 @endsection

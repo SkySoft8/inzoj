@@ -14,7 +14,6 @@ use App\Http\Controllers\Diary\DiaryNoteController;
 use App\Http\Controllers\Diary\MealController;
 use App\Http\Controllers\Diary\ProductController;
 use App\Http\Controllers\Diary\RecepieController;
-use App\Http\Controllers\Diary\FilterController;
 use App\Http\Controllers\Diary\ActivityController;
 use App\Http\Controllers\Diary\TrainingController;
 use App\Http\Controllers\Diary\WaterController;
@@ -42,6 +41,12 @@ use App\Http\Controllers\TrainerUser\TrainerTrainingController;
 |
 */
 
+Route::get('/csrf-token', function () {
+    return response()->json([
+        'csrf_token' => csrf_token(),
+    ]);
+});
+
 
 Route::get('/', function () {
     return redirect()->route('user.login');
@@ -58,10 +63,8 @@ Route::post('/login', [AuthController::class, 'login'])->name('user.login.form')
 
 Route::middleware('auth:web')->group(function () {
     Route::get('/questionnaire', [QuestionnaireController::class, 'show'])->name('questionnaire');
-    Route::post('/questionnaire', [QuestionnaireController::class, 'update'])->name('questionnaire');
-    Route::get('/premium', function () {
-        return view('profile.premium');
-    })->name('premium');
+    Route::post('/questionnaire/update', [QuestionnaireController::class, 'update'])->name('questionnaire');
+    Route::get('/premium', [PremiumController::class, 'show'])->name('premium');
     Route::post('/premium/purchase', [PremiumController::class, 'purchase'])->name('premium.purchase');
 
     Route::get('/profile', function () {
@@ -80,31 +83,34 @@ Route::middleware('auth:web')->group(function () {
     Route::get('/diary', [DiaryNoteController::class, 'show'])->name('diary');
     Route::get('/diary/item', [DiaryNoteController::class, 'redirection'])->name('diary.item');
     Route::get('/diary/meal', [MealController::class, 'show'])->name('meal');
+    Route::post('/diary/meal/toggle-favorite', [MealController::class, 'toggleFavorite'])->name('meal.toggleFavorite');
     Route::get('/diary/meal/product', [ProductController::class, 'show'])->name('product');
     Route::post('/diary/meal/product/add', [ProductController::class, 'addMealProduct'])->name('product.add');
     Route::post('/diary/meal/product/update', [ProductController::class, 'updateMealProduct'])->name('product.update');
     Route::get('/diary/meal/recepie', [RecepieController::class, 'show'])->name('recepie');
     Route::post('/diary/meal/recepie/add', [RecepieController::class, 'addMealRecepie'])->name('recepie.add');
     Route::post('/diary/meal/recepie/update', [RecepieController::class, 'updateMealRecepie'])->name('recepie.update');
-    Route::get('/diary/meal/recepie/filter', [FilterController::class, 'show'])->name('filter');
+    Route::get('/diary/meal/recepie/filter', [MealController::class, 'showFilter'])->name('filter');
     Route::get('/diary/meal/recepie/filter/apply', [MealController::class, 'filterApply'])->name('filter.apply');
     Route::get('/diary/activity', [ActivityController::class, 'show'])->name('activity');
-    Route::post('/diary/activity', [ActivityController::class, 'updateSteps'])->name('activity.steps.update');
+    Route::post('/diary/activity/steps', [ActivityController::class, 'updateSteps'])->name('activity.steps.update');
+    Route::post('/diary/activity/toggle-favorite', [ActivityController::class, 'toggleFavorite'])->name('activity.toggleFavorite');
     Route::get('/diary/activity/training', [TrainingController::class, 'show'])->name('training');
     Route::post('/diary/activity/trining/add', [TrainingController::class, 'addTraining'])->name('training.add');
-    Route::get('/diary/water', [WaterController::class, 'waterCounter'])->name('water');
+    Route::post('/diary/activity/trining/update', [TrainingController::class, 'updateTraining'])->name('training.update');
+    Route::post('/diary/water', [WaterController::class, 'waterCounter'])->name('water');
 
     Route::middleware('premium')->group(function () {
-        Route::get('/restaurant', [RestaurantController::class, 'show'])->name('restaurant');
-        Route::get('/restaurant/menu', [RestaurantController::class, 'showMenu'])->name('restaurant.menu');
-        Route::get('/restaurant/dish', [DishController::class, 'show'])->name('dish');
-        Route::post('/restaurant/dish/add', [DishController::class, 'addToDiary'])->name('dish.add');
-        Route::post('/restaurant/dish/delete', [DishController::class, 'deleteFromDiary'])->name('dish.delete');
+        Route::get('/restaurants', [RestaurantController::class, 'show'])->name('restaurant');
+        Route::get('/restaurants/menu', [RestaurantController::class, 'restaurantMenu'])->name('restaurant.menu');
+        Route::get('/restaurants/dish', [DishController::class, 'show'])->name('dish');
+        Route::post('/restaurants/dish/add', [DishController::class, 'addToDiary'])->name('dish.add');
+        Route::post('/restaurants/dish/delete', [DishController::class, 'deleteFromDiary'])->name('dish.delete');
     
         Route::get('/filter-trainings', [SportController::class, 'filter'])->name('sport');  
         Route::get('/trainings', [SportController::class, 'show'])->name('trainings');  
-        Route::post('/sign-up-training', [SportController::class, 'signUp'])->name('signUpTraining');  
-        Route::get('/my-trainings', [SportController::class, 'userTrainings'])->name('userTrainings');  
+        Route::post('/signup-training', [SportController::class, 'signUp'])->name('signUpTraining');  
+        Route::get('/user-trainings', [SportController::class, 'userTrainings'])->name('userTrainings');  
         Route::post('/revoke-training', [SportController::class, 'revoke'])->name('revoke');  
         Route::post('/trainer', [SportController::class, 'trainer'])->name('trainer');  
         Route::get('/trainer/rating', [SportController::class, 'rating'])->name('rating');  
@@ -127,7 +133,8 @@ Route::prefix('restaurant-user')->name('restaurantUser.')->group(function () {
         })->name('newDish');
         Route::post('/restaurant/menu/add', [RestaurantMenuController::class, 'dishAdd'])->name('dish.add');
         Route::get('/restaurant/menu/dish', [RestaurantMenuController::class, 'showDish'])->name('dish');
-        Route::post('/restaurant/menu/dish/action', [RestaurantMenuController::class, 'dishAction'])->name('dishAction');
+        Route::post('/restaurant/menu/dish/update', [RestaurantMenuController::class, 'updateDish'])->name('updateDish');
+        Route::get('/restaurant/menu/dish/delete', [RestaurantMenuController::class, 'deleteDish'])->name('deleteDish');
     });
 });
 
@@ -150,6 +157,6 @@ Route::prefix('trainer-user')->name('trainerUser.')->group(function () {
         Route::get('/all-trainings', [TrainerTrainingController::class, 'showAllTrainings'])->name('showAllTrainings');
         Route::get('/new-training', [TrainerTrainingController::class, 'newTraining'])->name('newTraining');
         Route::post('/training-action', [TrainerTrainingController::class, 'trainingAction'])->name('trainingAction');
-        Route::post('/edit-training', [TrainerTrainingController::class, 'editTraining'])->name('editTraining');
+        Route::get('/training', [TrainerTrainingController::class, 'editTraining'])->name('editTraining');
     });
 });

@@ -35,6 +35,12 @@ class TrainerAuthController extends Controller
         ]);
 
         if ($validator->fails()) {
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'errors' => $validator->errors()
+                ], 422);
+            }
             return redirect()->back()
                 ->withErrors($validator)
                 ->withInput();
@@ -45,7 +51,20 @@ class TrainerAuthController extends Controller
             'password' => Hash::make($request->password),
         ]);
 
-        Auth::guard('trainer')->attempt($request->only('email', 'password'));
+        // Auth::guard('trainer')->attempt($request->only('email', 'password'));
+        Auth::guard('trainer')->login($user);
+        $token = $user->createToken('trainer_auth_token')->plainTextToken;
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'token' => $token,
+                'user' => [
+                    'id' => $user->id,
+                    'email' => $user->email,
+                ]
+            ]);
+        }
 
         return redirect()->route('trainerUser.changeData');
     }
@@ -58,15 +77,44 @@ class TrainerAuthController extends Controller
         ]);
         
         if ($validator->fails()) {
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'errors' => $validator->errors()
+                ], 422);
+            }
             return back()->withErrors($validator)->withInput();
         }
         
         if (Auth::guard('trainer')->attempt($request->only('email', 'password'))) {
-            $request->session()->regenerate();
+            $user = Auth::guard('trainer')->user();
             
+            $user->tokens()->delete();
+            $token = $user->createToken('trainer_auth_token')->plainTextToken;
+
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'token' => $token,
+                    'user' => [
+                        'id' => $user->id,
+                        'email' => $user->email,
+                        'name' => $user->name,
+                    ]
+                ]);
+            }
+
+            $request->session()->regenerate();
             return redirect()->route('trainerUser.profile');
         }
-        
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Неверный email или пароль.'
+            ], 401);
+        }
+
         return back()->withErrors([
             'email' => 'Неверный email или пароль.',
         ])->onlyInput('email');
@@ -74,7 +122,23 @@ class TrainerAuthController extends Controller
     
     public function logout(Request $request)
     {
+        if ($request->expectsJson()) {
+            if ($request->user('sanctum')) {
+                $request->user('sanctum')->currentAccessToken()->delete();
+            }
+            return response()->json([
+                'success' => true,
+                'message' => 'Logged out successfully'
+            ]);
+        }
+
+        if (Auth::guard('trainer')->check()) {
+            $user = Auth::guard('trainer')->user();
+            $user->tokens()->delete();
+        }        
         Auth::guard('trainer')->logout();
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
         
         return redirect()->route('trainerUser.login');
     }

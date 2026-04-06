@@ -16,7 +16,19 @@ class CheckPremium
      */
     public function handle(Request $request, Closure $next): Response
     {
-        if (!Auth::check() || !Auth::user()->is_premium) {
+        $user = Auth::user();
+
+        if ($request->expectsJson()) {
+            if (!$user || !$user->is_premium) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Premium subscription required to access this resource'
+                ], 403);
+            }
+            return $next($request);
+        }
+
+        if (!$user || !$user->is_premium) {
             return redirect()->route('premium');
         }
         

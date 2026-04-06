@@ -103,7 +103,8 @@
                 <a href="{{ route('targets') }}" class="text-indigo-600">Введите норму воды</a>
             @endif
         </div>
-        <form action="{{ route('water') }}" class="grid grid-cols-6">
+        <form method="POST" action="{{ route('water') }}" class="grid grid-cols-6">
+            @csrf
             @for ($i = 0; $i < round($noteData->current_water/0.25); $i++)
                 @if ($i == round($noteData->current_water/0.25) - 1)
                     <button type="submit" name="type" value="full">Полная</button>
@@ -128,16 +129,16 @@
         </form>
 
         @if (!empty($userActivityData))
-            <form action="{{ route('training') }}" class="w-full flex flex-col gap-1 pl-2 pb-2">
-                @foreach ($userActivityData as $trainingName => $training)
-                    <input type="hidden" name="training_id" value="{{ $training->id }}">
+            @foreach ($userActivityData as $item)
+                <form action="{{ route('training') }}" class="w-full flex flex-col gap-1 pl-2 pb-2">
+                    <input type="hidden" name="user_activity_id" value="{{ $item['activity']->id }}">
                     <button type="submit" class="flex justify-between">
-                        <p>{{ $trainingName }}</p>
-                        <p>{{ $training->time_count }} {{ $training->time_type }}</p>
-                        <p>{{ $training->calories }} ккал</p>
+                        <p>{{ $item['name'] }}</p>
+                        <p>{{ $item['activity']->time_count }} {{ $item['activity']->time_type }}</p>
+                        <p>{{ $item['activity']->calories }} ккал</p>
                     </button>
-                @endforeach
-            </form>
+                </form>
+            @endforeach
         @endif
     </div>
 

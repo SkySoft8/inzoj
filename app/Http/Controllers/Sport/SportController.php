@@ -13,8 +13,14 @@ use App\Models\UserTraining;
 
 class SportController extends Controller
 {
-    public function filter() {    
+    public function filter(Request $request) {    
         $trainingCategories = TrainingCategory::pluck('name', 'id');
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'categories' => $trainingCategories
+            ]);
+        }
         return view('sport.filters', ['trainingCategories' => $trainingCategories]);
     }
         
@@ -22,9 +28,16 @@ class SportController extends Controller
         $trainingCategories = TrainingCategory::pluck('name', 'id');
 
         $suitableTrainings = [];
-        $categoriesFilter = $request->categories;
+        $categoriesFilter = $request->get('categories', []);
         $fromDate = $request->from_date;
         $toDate = $request->to_date;
+
+        if ($request->expectsJson() && (!$fromDate || !$toDate)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'from_date and to_date are required'
+            ], 422);
+        }        
 
         if (in_array('all', $categoriesFilter) || empty($categoriesFilter)) {
             $suitableTrainings = Training::whereBetween('date', [$fromDate, $toDate])
@@ -46,6 +59,20 @@ class SportController extends Controller
             $trainers[$id] = $trainerName;
         }
 
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'trainings' => $suitableTrainings,
+                'categories' => $trainingCategories,
+                'trainers' => $trainers,
+                'filters' => [
+                    'categories' => $categoriesFilter,
+                    'from_date' => $fromDate,
+                    'to_date' => $toDate
+                ]
+            ]);
+        }        
+
         return view('sport.index', [
             'trainings' => $suitableTrainings,
             'categories' => $trainingCategories,
@@ -57,20 +84,42 @@ class SportController extends Controller
         $userId = Auth::user()->id;
         $trainingId = $request->training_id;
 
+        $existing = UserTraining::where('user_id', $userId)
+            ->where('training_id', $trainingId)
+            ->first();
+            
+        if ($existing) {
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Already signed up for this training'
+                ], 400);
+            }
+            return redirect()->back()->with('error', 'Вы уже записаны на эту тренировку');
+        }
+
         UserTraining::create([
             'user_id' => $userId,
             'training_id' => $trainingId,
         ]);
 
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Successfully signed up for training',
+                'training_id' => $trainingId
+            ]);
+        }
+
         return redirect()->route('userTrainings');
     }
 
-    public function userTrainings() {
+    public function userTrainings(Request $request) {
         $trainingCategories = TrainingCategory::pluck('name', 'id');
 
         $userId = Auth::user()->id;
-        $userTrainingsId = UserTraining::where('user_id', $userId)->pluck('training_id')->toArray();
-        $allUserTrainings = Training::whereIn('id', $userTrainingsId)
+        $trainersId = UserTraining::where('user_id', $userId)->pluck('training_id')->toArray();
+        $allUserTrainings = Training::whereIn('id', $trainersId)
             ->orderBy('date', 'asc')
             ->get();
 
@@ -86,6 +135,16 @@ class SportController extends Controller
             $trainers[$id] = $trainerName;
         }
 
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'user_trainings' => $userTrainings->values(),
+                'old_trainings' => $oldTrainings->values(),
+                'categories' => $trainingCategories,
+                'trainers' => $trainers
+            ]);
+        }        
+
         return view('sport.userTrainings', [
             'userTrainings' => $userTrainings,
             'oldTrainings' => $oldTrainings,
@@ -98,9 +157,27 @@ class SportController extends Controller
         $userId = Auth::user()->id;
         $trainingId = $request->training_id;
 
-        UserTraining::where('user_id', $userId)
+        $deleted = UserTraining::where('user_id', $userId)
             ->where('training_id', $trainingId)
             ->delete();
+
+        if ($deleted == 0) {
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Training signup not found'
+                ], 404);
+            }
+            return redirect()->back()->with('error', 'Запись на тренировку не найдена');
+        }
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Successfully unsubscribed from training',
+                'training_id' => $trainingId
+            ]);
+        }
 
         return redirect()->route('userTrainings');
     }
@@ -108,6 +185,24 @@ class SportController extends Controller
     public function trainer(Request $request) {
         $trainerId = $request->trainer_id;
         $trainer = TrainerUser::find($trainerId);
+
+        if (!$trainer) {
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Trainer not found'
+                ], 404);
+            }
+            abort(404, 'Trainer not found');
+        }        
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'trainer' => $trainer,
+            ]);
+        }
+
         $previousUrl = url()->previous();
 
         return view('sport.trainer', [
@@ -117,9 +212,18 @@ class SportController extends Controller
     }
 
     public function rating(Request $request) {
-        $url = $request->url;
         $trainerId = $request->trainer_id;
         $trainer = TrainerUser::find($trainerId);
+
+        if (!$trainer) {
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Trainer not found'
+                ], 404);
+            }
+            abort(404, 'Trainer not found');
+        }        
 
         $userRating = $request->rating;
         $oldRating = $trainer->rating ?? 0;
@@ -136,6 +240,18 @@ class SportController extends Controller
                 'rating_count' => $trainer->rating_count + 1,
             ]);
         }
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Rating submitted successfully',
+                'trainer_id' => $trainerId,
+                'new_rating' => $trainer->rating,
+                'rating_count' => $trainer->rating_count
+            ]);
+        }
+
+        $url = $request->url;
 
         return view('sport.trainer', [
             'trainer' => $trainer,

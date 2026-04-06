@@ -6,8 +6,7 @@
 
     <h4 class="text-xl font-bold">Активные тренировки</h4>
     @foreach ($trainings as $training)
-        <form method="POST" action="{{ route('trainerUser.editTraining') }}">
-            @csrf
+        <form action="{{ route('trainerUser.editTraining') }}">
             <button class="w-full flex flex-col text-left gap-1 border border-indigo-600 rounded-md p-1">
                 <input type="hidden" name="id" value="{{ $training->id }}">
                 <p>{{ $training->name }} ({{ $training->time_amount }} мин)</p>

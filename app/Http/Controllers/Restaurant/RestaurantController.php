@@ -18,13 +18,38 @@ class RestaurantController extends Controller
         } else {
             $correctRestaurants = Restaurant::limit(16)->get();
         }
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'restaurants' => $correctRestaurants,
+                'filters' => [
+                    'restaurant_type' => $restaurantType
+                ]
+            ]);
+        }
         return view('restaurant.index', ['restaurants' => $correctRestaurants]);
     }
 
-    public function showMenu(Request $request) {
+    public function restaurantMenu(Request $request) {
         $restaurantId = $request->get('restaurant_id');
         $restaurant = Restaurant::find($restaurantId);
+
+        if (!$restaurant && $request->expectsJson()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Restaurant not found'
+            ], 404);
+        }
+
         $restaurantDishes = Dish::where('restaurant_id', $restaurantId)->limit(16)->get();
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'restaurant' => $restaurant,
+                'dishes' => $restaurantDishes
+            ]);
+        }
 
         return view('restaurant.menu', ['restaurant' => $restaurant, 'dishes' => $restaurantDishes]);
     }
