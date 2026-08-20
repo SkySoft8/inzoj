@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Diary;
 use App\Models\Product;
 use App\Models\UserFavoriteProduct;
 use App\Models\UserFavoriteRecepie;
+use App\Models\UserRecepie;
 
 use App\Models\Recepies\Recepie;
 use App\Models\Recepies\RecepieMealType;
@@ -69,8 +70,10 @@ class MealController extends Controller
             } else {
                 $recepies = Recepie::limit(16)->get();
             }
+            $userRecepies = UserRecepie::where('user_id', $user->id)->get();
+            $allRecepies = $userRecepies->concat($recepies);
 
-            foreach ($recepies as $recepie) {
+            foreach ($allRecepies as $recepie) {
                 if (in_array($recepie->id, $favoriteRecepiesId)) {
                     $recepie->is_favorite = true;
                 } else {
@@ -82,12 +85,12 @@ class MealController extends Controller
                 return response()->json([
                     'success' => true,
                     'products' => null,
-                    'recepies' => $recepies,
+                    'recepies' => $allRecepies,
                     'meal_type' => $mealType
                 ]);
             }
 
-            return view('diary.meal', ['products' => null, 'recepies' => $recepies]);            
+            return view('diary.meal', ['products' => null, 'recepies' => $allRecepies]);            
         }
     }
 

@@ -1,19 +1,16 @@
 <?php
 
-namespace App\Models\Recepies;
+namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class RecepieIngredient extends Model
+class UserRecepieIngridient extends Model
 {
     use HasFactory;
 
     protected $fillable = [
-        'recepie_id',
         'user_recepie_id',
-        'name',
-        'amount'
+        'ingridient_id',
     ];
-
 }

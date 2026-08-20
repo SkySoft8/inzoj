@@ -38,6 +38,10 @@
             <button type="submit" class="rounded w-full flex justify-between py-3 px-4 font-medium bg-white border">
                 <label class="text-md">{{ $label }}</label>
                 {{ $current_field ?? 'Не указано' }}
+                @if ($field == 'calories')
+                    <br><label class="text-md">Недельная цель</label>
+                    {{ $current_field * 7 ?? 'Не указано' }}
+                @endif
             </button>
         </form>
         @endforeach

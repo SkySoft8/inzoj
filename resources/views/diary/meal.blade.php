@@ -39,19 +39,25 @@
                 <button type="submit">{{ $product->is_favorite ? "❤" : "♡" }}</button>
             </form>
         @endforeach
+        
     @elseif ($recepies)
         <h4 class="text-2xl text-center font-medium">Рецепты</h4>
 
         <form action="{{ route('filter') }}">
             <button type="submit" class="flex flex-col bg-gray-300 rounded-lg p-1">Фильтры</button>
         </form>
+        <a href="{{ route('recepie.userRecepie') }}" class="flex flex-col bg-blue-300 rounded-lg p-1">Добавить свой рецепт</a>
 
         <div class="grid grid-cols-2 gap-2">
             @foreach ($recepies as $recepie)
                 <form action="{{ route('recepie') }}">
                     <input type="hidden" name="recepie_id" value="{{ $recepie->id }}">
                     <button type="submit" name="action" value="show" class="flex flex-col bg-gray-300 rounded-lg">
-                        <img src="{{ $recepie->image }}" class="rounded-lg">
+                        @if (isset($recepie->image))
+                            <img src="{{ $recepie->image }}" class="rounded-lg">
+                        @else
+                            <input type="hidden" name="is_user_recepie" value="true">
+                        @endif
                         <div class="flex flex-col gap-1 p-2">
                             <p>{{ $recepie->name }}</p>
                             <p>БЖУ: {{ $recepie->proteins }}  {{ $recepie->fats }}  {{ $recepie->carbs }}</p>

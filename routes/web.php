@@ -92,6 +92,8 @@ Route::middleware('auth:web')->group(function () {
     Route::post('/diary/meal/recepie/update', [RecepieController::class, 'updateMealRecepie'])->name('recepie.update');
     Route::get('/diary/meal/recepie/filter', [MealController::class, 'showFilter'])->name('filter');
     Route::get('/diary/meal/recepie/filter/apply', [MealController::class, 'filterApply'])->name('filter.apply');
+    Route::get('/diary/meal/recepie/userRecepieForm', [RecepieController::class, 'showUserRecepieForm'])->name('recepie.userRecepie');
+    Route::get('/diary/meal/recepie/userRecepieForm/create', [RecepieController::class, 'createUserRecepie'])->name('recepie.createUserRecepie');
     Route::get('/diary/activity', [ActivityController::class, 'show'])->name('activity');
     Route::post('/diary/activity/steps', [ActivityController::class, 'updateSteps'])->name('activity.steps.update');
     Route::post('/diary/activity/toggle-favorite', [ActivityController::class, 'toggleFavorite'])->name('activity.toggleFavorite');

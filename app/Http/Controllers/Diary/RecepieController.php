@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Diary;
 use App\Models\Recepies\Recepie;
 use App\Models\Recepies\RecepieIngredient;
 use App\Models\UserFavoriteRecepie;
+use App\Models\UserRecepie;
+use App\Models\UserRecepieIngridient;
 
 use App\Models\Product;
 use App\Models\Restaurants\Dish; 
@@ -18,9 +20,16 @@ use Illuminate\Support\Facades\Auth;
 class RecepieController extends Controller
 {
     public function show (Request $request) {
-        [$userId, $diaryNoteId, $recepieId, $mealType, $amount, $userMealId] = $this->getData($request);        $previousUrl = url()->previous();
+        [$userId, $diaryNoteId, $recepieId, $mealType, $amount, $userMealId] = $this->getData($request);        
+        $previousUrl = url()->previous();
 
-        $recepie = Recepie::where('id', $recepieId)->first();
+        $isUserRecepie = $request->is_user_recepie ?? null;
+        if ($isUserRecepie !== null) {
+            $recepie = UserRecepie::where('id', $recepieId)->first();
+        } else {
+            $recepie = Recepie::where('id', $recepieId)->first();
+        }
+
         if (!$recepie && $request->expectsJson()) {
             return response()->json([
                 'success' => false,
@@ -28,7 +37,14 @@ class RecepieController extends Controller
             ], 404);
         }
 
-        $ingredients = RecepieIngredient::where('recepie_id', $recepieId)->get();
+        if ($isUserRecepie !== null) {
+            $ingredientIds = UserRecepieIngridient::where('user_recepie_id', $recepieId)
+                ->pluck('ingredient_id')
+                ->toArray();
+            $ingredients = RecepieIngredient::whereIn('id', $ingredientIds)->get();
+        } else {
+            $ingredients = RecepieIngredient::where('recepie_id', $recepieId)->get();
+        }
         if ($request->expectsJson()) {
             return response()->json([
                 'success' => true,
@@ -77,6 +93,55 @@ class RecepieController extends Controller
         return $this->recount($userId, $diaryNoteId, false, $request, $userMealId);
     }
 
+    public function showUserRecepieForm(Request $request) {
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+            ]);
+        }
+
+        return view('diary.userRecepie');
+    }
+
+    public function createUserRecepie(Request $request) {
+        $userId = Auth::user()->id;
+        $name = $request->get('name');
+        $instructions = $request->get('instructions');
+        $calories = $request->get('calories');
+        $proteins = $request->get('proteins');
+        $fats = $request->get('fats');
+        $carbs = $request->get('carbs');
+
+        $recepie = UserRecepie::create([
+            'user_id' => $userId,
+            'name' => $name,
+            'instructions' => $instructions,
+            'calories' => $calories,
+            'proteins' =>  $proteins,
+            'fats' => $fats,
+            'carbs' => $carbs
+        ]);
+
+        $ingredientIds = $request->get('ingredient_ids');
+        $userRecepieId = $recepie->id;
+        $data = array_map(function ($ingredientId) use ($userRecepieId) {
+            return [
+                'user_recepie_id' => $userRecepieId,
+                'ingredient_id' => $ingredientId
+            ];
+        }, $ingredientIds);
+        
+        UserRecepieIngridient::insert($data);        
+
+        if ($request && $request->expectsJson()) {           
+            return response()->json([
+                'success' => true,
+                'message' => 'Recipe created successfully',
+            ]);
+        }
+
+        return redirect()->route('meal');
+    }
 
     private function recount($userId, $diaryNoteId, $adding, $request, $userMealId) {
         $currentMeals = UserMeal::where('user_id', $userId)
