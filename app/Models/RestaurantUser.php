@@ -14,10 +14,16 @@ class RestaurantUser extends Authenticatable
     protected $fillable = [
         'name',
         'email',
+        'password',
         'restaurant_id'
     ];
 
     protected $hidden = [
         'password',
     ];
+
+    public function restaurant()
+    {
+        return $this->belongsTo(\App\Models\Restaurants\Restaurant::class);
+    }
 }

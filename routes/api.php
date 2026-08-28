@@ -6,6 +6,8 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\QuestionnaireController;
 use App\Http\Controllers\PremiumController;
 
+use App\Http\Controllers\StatsController;
+
 use App\Http\Controllers\Profile\UserDataController;
 use App\Http\Controllers\Profile\TargetsController;
 use App\Http\Controllers\Profile\RationController;
@@ -30,6 +32,10 @@ use App\Http\Controllers\TrainerUser\TrainerAuthController;
 use App\Http\Controllers\TrainerUser\TrainerDataController;
 use App\Http\Controllers\TrainerUser\TrainerTrainingController;
 
+use App\Http\Controllers\Moderator\ModeratorAuthController;
+use App\Http\Controllers\Moderator\ModerationController;
+use App\Http\Controllers\Moderator\ActivityCatalogController;
+
 /*
 |--------------------------------------------------------------------------
 | API Routes
@@ -46,10 +52,13 @@ Route::post('/login', [AuthController::class, 'login']);
 
 // Аутентификация ресторанов
 Route::post('/restaurant/login', [RestaurantAuthController::class, 'login']);
+Route::post('/restaurant/register', [RestaurantAuthController::class, 'register']);
 
 // Аутентификация тренеров
 Route::post('/trainer/login', [TrainerAuthController::class, 'login']);
 Route::post('/trainer/register', [TrainerAuthController::class, 'register']);
+
+Route::post('/moderator/login', [ModeratorAuthController::class, 'login']);
 
 Route::middleware('auth:sanctum')->group(function () {    
     // ==================== (Авторизованные пользователи) ====================
@@ -103,6 +112,7 @@ Route::middleware('auth:sanctum')->group(function () {
                 Route::get('/', [RecepieController::class, 'show']);
                 Route::post('/add', [RecepieController::class, 'addMealRecepie']);
                 Route::put('/update', [RecepieController::class, 'updateMealRecepie']);
+                Route::post('/create', [RecepieController::class, 'createUserRecepie']);
             });
             
             // Фильтры
@@ -119,13 +129,28 @@ Route::middleware('auth:sanctum')->group(function () {
             // Тренировки
             Route::prefix('training')->group(function () {
                 Route::get('/', [TrainingController::class, 'show']);
+                Route::post('/create', [TrainingController::class, 'createActivity']);
                 Route::post('/add', [TrainingController::class, 'addTraining']);
                 Route::put('/update', [TrainingController::class, 'updateTraining']);
+                Route::delete('/{id}', [TrainingController::class, 'deleteTraining']);
             });
         });
         
         // Вода
         Route::put('/water', [WaterController::class, 'waterCounter']);
+    });
+
+    Route::prefix('stats')->group(function () {
+        Route::get('/summary', [StatsController::class, 'summary']);
+        Route::get('/series', [StatsController::class, 'series']);
+        Route::get('/compare', [StatsController::class, 'compare']);
+        Route::get('/logs', [StatsController::class, 'logs']);
+        Route::post('/logs', [StatsController::class, 'storeLog']);
+        Route::delete('/logs/{id}', [StatsController::class, 'deleteLog']);
+        Route::get('/photos', [StatsController::class, 'photos']);
+        Route::post('/photos', [StatsController::class, 'storePhoto']);
+        Route::get('/photos/{id}/file', [StatsController::class, 'showFile']);
+        Route::delete('/photos/{id}', [StatsController::class, 'deletePhoto']);
     });
     
     // ==================== Премиум маршруты ====================
@@ -185,6 +210,28 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::put('/training/update', [TrainerTrainingController::class, 'updateTraining']);
             Route::delete('/training/delete', [TrainerTrainingController::class, 'deleteTraining']);
         });
+    });
+
+    Route::middleware('moderator')->prefix('moderator')->group(function () {
+        Route::post('/logout', [ModeratorAuthController::class, 'logout']);
+        Route::get('/queue', [ModerationController::class, 'queue']);
+
+        Route::get('/recipes', [ModerationController::class, 'recipes']);
+        Route::get('/recipes/{id}', [ModerationController::class, 'showRecipe']);
+        Route::post('/recipes/{id}', [ModerationController::class, 'reviewRecipe']);
+
+        Route::get('/restaurants', [ModerationController::class, 'restaurants']);
+        Route::get('/restaurants/{id}', [ModerationController::class, 'showRestaurant']);
+        Route::post('/restaurants/{id}', [ModerationController::class, 'reviewRestaurant']);
+
+        Route::get('/trainers', [ModerationController::class, 'trainers']);
+        Route::get('/trainers/{id}', [ModerationController::class, 'showTrainer']);
+        Route::post('/trainers/{id}', [ModerationController::class, 'reviewTrainer']);
+
+        Route::get('/activities', [ActivityCatalogController::class, 'index']);
+        Route::post('/activities', [ActivityCatalogController::class, 'store']);
+        Route::post('/activities/import', [ActivityCatalogController::class, 'import']);
+        Route::put('/activities/{id}', [ActivityCatalogController::class, 'update']);
     });
 });
 

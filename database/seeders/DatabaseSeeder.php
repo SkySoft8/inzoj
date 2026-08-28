@@ -21,6 +21,8 @@ class DatabaseSeeder extends Seeder
 
         $this->call([
             RestaurantUserSeeder::class,
+            ModeratorUserSeeder::class,
+            ActivitySeeder::class,
         ]);
     }
 }

@@ -21,8 +21,13 @@ use Illuminate\Http\Request;
  * )
  * 
  * @OA\Server(
+ *     url="/",
+ *     description="Current host"
+ * )
+ * 
+ * @OA\Server(
  *     url=L5_SWAGGER_CONST_HOST,
- *     description="API Server"
+ *     description="Configured host"
  * )
  * 
  * @OA\SecurityScheme(
@@ -47,6 +52,14 @@ use Illuminate\Http\Request;
  *     scheme="bearer",
  *     bearerFormat="sanctum",
  *     description="Enter restaurant sanctum token (from Restaurant Auth)"
+ * )
+ * 
+ * @OA\SecurityScheme(
+ *     securityScheme="moderatorSanctumToken",
+ *     type="http",
+ *     scheme="bearer",
+ *     bearerFormat="sanctum",
+ *     description="Enter moderator sanctum token (from Moderator Auth)"
  * )
  * 
  * @OA\Schema(
@@ -90,6 +103,9 @@ use Illuminate\Http\Request;
  *     @OA\Property(property="achievements", type="string", example="Certified personal trainer, Nutrition specialist", description="Achievements", nullable=true),
  *     @OA\Property(property="rating", type="number", format="float", example=4.8, description="Average rating", minimum=0, maximum=5, nullable=true),
  *     @OA\Property(property="rating_count", type="integer", example=42, description="Number of ratings", minimum=0, nullable=true),
+ *     @OA\Property(property="moderation_status", type="string", enum={"pending", "approved", "rejected"}, example="approved"),
+ *     @OA\Property(property="moderated_at", type="string", format="date-time", nullable=true),
+ *     @OA\Property(property="moderation_comment", type="string", nullable=true),
  *     @OA\Property(property="created_at", type="string", format="date-time", description="Creation timestamp"),
  *     @OA\Property(property="updated_at", type="string", format="date-time", description="Last update timestamp")
  * )
@@ -136,6 +152,9 @@ use Illuminate\Http\Request;
  *     @OA\Property(property="id", type="integer", format="int64", example=1, description="Restaurant ID"),
  *     @OA\Property(property="name", type="string", example="Best Restaurant", description="Restaurant name"),
  *     @OA\Property(property="restaurant_type", type="string", enum={"cafe", "canteen", "fine_restaurant", "fast_food", "bistro", "pub", "bar", "other"}, description="Type of restaurant", nullable=true),
+ *     @OA\Property(property="moderation_status", type="string", enum={"pending", "approved", "rejected"}, example="approved"),
+ *     @OA\Property(property="moderated_at", type="string", format="date-time", nullable=true),
+ *     @OA\Property(property="moderation_comment", type="string", nullable=true),
  *     @OA\Property(property="created_at", type="string", format="date-time", description="Creation timestamp"),
  *     @OA\Property(property="updated_at", type="string", format="date-time", description="Last update timestamp")
  * )
@@ -244,12 +263,39 @@ use Illuminate\Http\Request;
  * )
  * 
  * @OA\Schema(
+ *     schema="UserRecepie",
+ *     type="object",
+ *     title="User Recipe",
+ *     @OA\Property(property="id", type="integer", example=1),
+ *     @OA\Property(property="user_id", type="integer", example=1),
+ *     @OA\Property(property="name", type="string", example="Oatmeal"),
+ *     @OA\Property(property="instructions", type="string", example="Mix oats with water"),
+ *     @OA\Property(property="calories", type="number", format="float", example=150.0),
+ *     @OA\Property(property="proteins", type="number", format="float", example=5.0),
+ *     @OA\Property(property="fats", type="number", format="float", example=3.0),
+ *     @OA\Property(property="carbs", type="number", format="float", example=27.0),
+ *     @OA\Property(property="moderation_status", type="string", enum={"pending", "approved", "rejected"}, example="pending"),
+ *     @OA\Property(property="moderated_at", type="string", format="date-time", nullable=true),
+ *     @OA\Property(property="moderation_comment", type="string", nullable=true),
+ *     @OA\Property(property="created_at", type="string", format="date-time"),
+ *     @OA\Property(property="updated_at", type="string", format="date-time")
+ * )
+ * 
+ * @OA\Schema(
  *     schema="Activity",
  *     type="object",
  *     title="Activity",
  *     @OA\Property(property="id", type="integer", example=1),
- *     @OA\Property(property="name", type="string", example="Running"),
- *     @OA\Property(property="calories", type="number", format="float", example=300),
+ *     @OA\Property(property="name", type="string", example="Отжимания"),
+ *     @OA\Property(property="time", type="string", example="10 мин"),
+ *     @OA\Property(property="calories", type="integer", example=80),
+ *     @OA\Property(property="category", type="string", nullable=true, example="chest"),
+ *     @OA\Property(property="location_type", type="string", enum={"home", "gym", "outdoor", "any"}, example="home"),
+ *     @OA\Property(property="is_custom", type="boolean", example=false),
+ *     @OA\Property(property="is_premium", type="boolean", example=false),
+ *     @OA\Property(property="has_video", type="boolean", example=true),
+ *     @OA\Property(property="video_url", type="string", nullable=true, example="https://example.com/video.mp4"),
+ *     @OA\Property(property="video_locked", type="boolean", example=false, description="True when a video exists but the user is not premium"),
  *     @OA\Property(property="is_favorite", type="boolean", example=false)
  * )
  */
