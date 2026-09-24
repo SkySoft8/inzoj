@@ -14,7 +14,7 @@ use Illuminate\Http\Request;
  * @OA\Get(
  *     path="/api/diary/meal",
  *     summary="Get meal list (products or recipes)",
- *     description="Returns list of products or recipes for meal selection",
+ *     description="Products or the shared recipe list. meal_type only remembers which meal screen was opened. Recipe list is approved user recipes, then the catalog. list for products: frequent, recent, favorites. list for recipes: all, favorites. q searches by name.",
  *     operationId="getMeals",
  *     tags={"Diary - Meal"},
  *     security={{"userSanctumToken": {}}},
@@ -30,7 +30,20 @@ use Illuminate\Http\Request;
  *         ),
  *         description="Type of meal"
  *     ),
- *     
+ *     @OA\Parameter(
+ *         name="list",
+ *         in="query",
+ *         required=false,
+ *         description="Products: frequent, recent, favorites. Recipes: all, favorites.",
+ *         @OA\Schema(type="string")
+ *     ),
+ *     @OA\Parameter(
+ *         name="q",
+ *         in="query",
+ *         required=false,
+ *         description="Search by name",
+ *         @OA\Schema(type="string")
+ *     ),
  *     @OA\Parameter(
  *         name="productsOrRecepies",
  *         in="query",
@@ -49,6 +62,7 @@ use Illuminate\Http\Request;
  *         @OA\JsonContent(
  *             type="object",
  *             @OA\Property(property="success", type="boolean", example=true),
+ *             @OA\Property(property="list", type="string", example="all"),
  *             @OA\Property(
  *                 property="products",
  *                 type="array",
@@ -59,7 +73,8 @@ use Illuminate\Http\Request;
  *                 property="recepies",
  *                 type="array",
  *                 nullable=true,
- *                 @OA\Items(ref="#/components/schemas/Recepie")
+ *                 description="Approved user recipes first, then catalog recipes.",
+ *                 @OA\Items(ref="#/components/schemas/UserRecepie")
  *             ),
  *             @OA\Property(
  *                 property="meal_type",
@@ -106,7 +121,19 @@ use Illuminate\Http\Request;
  *                     property="recepie_id",
  *                     type="integer",
  *                     example=1,
- *                     description="Required if productsOrRecepies=recepies"
+ *                     description="Catalog recipe id"
+ *                 ),
+ *                 @OA\Property(
+ *                     property="is_user_recepie",
+ *                     type="boolean",
+ *                     example=false,
+ *                     description="True when the heart is on a user recipe"
+ *                 ),
+ *                 @OA\Property(
+ *                     property="user_recepie_id",
+ *                     type="integer",
+ *                     example=3,
+ *                     description="User recipe id. Send with is_user_recepie true"
  *                 ),
  *                 @OA\Property(
  *                     property="is_favorite",
@@ -135,7 +162,7 @@ use Illuminate\Http\Request;
  * @OA\Get(
  *     path="/api/diary/meal/filter",
  *     summary="Get available filters",
- *     description="Returns all available filter options for recipes",
+ *     description="Filter buttons for the recipe list and for the new-recipe form. Each option has value and label. popular is the top row and follows what this user opens most.",
  *     operationId="getFilters",
  *     tags={"Diary - Meal"},
  *     security={{"userSanctumToken": {}}},
@@ -150,24 +177,50 @@ use Illuminate\Http\Request;
  *                 property="filters",
  *                 type="object",
  *                 @OA\Property(
+ *                     property="popular",
+ *                     type="array",
+ *                     @OA\Items(
+ *                         type="object",
+ *                         @OA\Property(property="group", type="string", example="meal_type"),
+ *                         @OA\Property(property="value", type="string", example="breakfast"),
+ *                         @OA\Property(property="label", type="string", example="Завтрак")
+ *                     )
+ *                 ),
+ *                 @OA\Property(
  *                     property="meal_types",
  *                     type="array",
- *                     @OA\Items(type="string")
+ *                     @OA\Items(
+ *                         type="object",
+ *                         @OA\Property(property="value", type="string", example="breakfast"),
+ *                         @OA\Property(property="label", type="string", example="Завтрак")
+ *                     )
  *                 ),
  *                 @OA\Property(
  *                     property="components",
  *                     type="array",
- *                     @OA\Items(type="string")
+ *                     @OA\Items(
+ *                         type="object",
+ *                         @OA\Property(property="value", type="string"),
+ *                         @OA\Property(property="label", type="string")
+ *                     )
  *                 ),
  *                 @OA\Property(
  *                     property="cooking_methods",
  *                     type="array",
- *                     @OA\Items(type="string")
+ *                     @OA\Items(
+ *                         type="object",
+ *                         @OA\Property(property="value", type="string"),
+ *                         @OA\Property(property="label", type="string")
+ *                     )
  *                 ),
  *                 @OA\Property(
  *                     property="diets",
  *                     type="array",
- *                     @OA\Items(type="string")
+ *                     @OA\Items(
+ *                         type="object",
+ *                         @OA\Property(property="value", type="string"),
+ *                         @OA\Property(property="label", type="string")
+ *                     )
  *                 )
  *             )
  *         )
@@ -179,7 +232,7 @@ use Illuminate\Http\Request;
  * @OA\Get(
  *     path="/api/diary/meal/filter/apply",
  *     summary="Apply filters to recipes",
- *     description="Returns filtered recipes based on selected filters",
+ *     description="Catalog recipes that have the selected tags, plus approved user recipes whose moderator tags match. Inside one group any selected value matches. Groups are combined.",
  *     operationId="applyFilters",
  *     tags={"Diary - Meal"},
  *     security={{"userSanctumToken": {}}},
@@ -256,7 +309,8 @@ use Illuminate\Http\Request;
  *                 property="recepies",
  *                 type="array",
  *                 nullable=true,
- *                 @OA\Items(ref="#/components/schemas/Recepie")
+ *                 description="Matching user recipes first, then matching catalog recipes.",
+ *                 @OA\Items(ref="#/components/schemas/UserRecepie")
  *             ),
  *             @OA\Property(
  *                 property="meal_type",

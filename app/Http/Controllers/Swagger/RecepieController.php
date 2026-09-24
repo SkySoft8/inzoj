@@ -14,7 +14,7 @@ use Illuminate\Http\Request;
  * @OA\Get(
  *     path="/api/diary/meal/recepie",
  *     summary="Get recipe details",
- *     description="Returns recipe information for editing or adding to meal",
+ *     description="Recipe card. For a user recipe send is_user_recepie=1. Items with grams are returned for a user recipe. Catalog cooking text is in steps.",
  *     operationId="getRecepie",
  *     tags={"Diary - Recipes"},
  *     security={{"userSanctumToken": {}}},
@@ -35,6 +35,14 @@ use Illuminate\Http\Request;
  *         description="Recipe ID"
  *     ),
  *     
+ *     @OA\Parameter(
+ *         name="is_user_recepie",
+ *         in="query",
+ *         required=false,
+ *         @OA\Schema(type="boolean", example=true),
+ *         description="Pass true to open a user recipe"
+ *     ),
+ *
  *     @OA\Parameter(
  *         name="meal_type",
  *         in="query",
@@ -57,12 +65,13 @@ use Illuminate\Http\Request;
  *         @OA\JsonContent(
  *             type="object",
  *             @OA\Property(property="success", type="boolean", example=true),
- *             @OA\Property(property="recepie", ref="#/components/schemas/Recepie"),
+ *             @OA\Property(property="recepie", ref="#/components/schemas/UserRecepie"),
  *             @OA\Property(
  *                 property="ingredients",
  *                 type="array",
  *                 @OA\Items(ref="#/components/schemas/RecepieIngredient")
  *             ),
+ *             @OA\Property(property="items", type="array", description="User recipe lines: product and grams", @OA\Items(type="object")),
  *             @OA\Property(property="amount", type="integer", example=100),
  *             @OA\Property(property="diary_note_id", type="integer", example=33),
  *             @OA\Property(property="user_meal_id", type="integer", nullable=true)
@@ -93,7 +102,7 @@ use Illuminate\Http\Request;
  * @OA\Post(
  *     path="/api/diary/meal/recepie/add",
  *     summary="Add recipe to meal",
- *     description="Adds a recipe to the specified meal",
+ *     description="Writes the recipe into the opened meal. Catalog: recepie_id. User recipe: is_user_recepie true and user_recepie_id. amount is grams and may be omitted for a user recipe; then one portion is used. The recipe must already be approved.",
  *     operationId="addRecepieToMeal",
  *     tags={"Diary - Recipes"},
  *     security={{"userSanctumToken": {}}},
@@ -111,10 +120,12 @@ use Illuminate\Http\Request;
  *         @OA\MediaType(
  *             mediaType="application/json",
  *             @OA\Schema(
- *                 required={"recepie_id", "meal_type", "amount"},
- *                 @OA\Property(property="recepie_id", type="integer", example=1, description="**REQUIRED**. Recipe ID"),
- *                 @OA\Property(property="meal_type", type="string", enum={"breakfast", "lunch", "dinner", "snack"}, description="**REQUIRED**. Type of meal"),
- *                 @OA\Property(property="amount", type="integer", example=100, description="**REQUIRED**. Amount in grams")
+ *                 required={"meal_type"},
+ *                 @OA\Property(property="recepie_id", type="integer", example=1, description="Catalog recipe id"),
+ *                 @OA\Property(property="is_user_recepie", type="boolean", example=true),
+ *                 @OA\Property(property="user_recepie_id", type="integer", example=3, description="Approved user recipe id"),
+ *                 @OA\Property(property="meal_type", type="string", enum={"breakfast", "lunch", "dinner", "snack"}, description="Meal screen to write into"),
+ *                 @OA\Property(property="amount", type="integer", example=100, description="Grams. Optional for a user recipe")
  *             )
  *         )
  *     ),
@@ -216,28 +227,25 @@ use Illuminate\Http\Request;
  * @OA\Post(
  *     path="/api/diary/meal/recepie/create",
  *     summary="Create a user recipe",
- *     description="Creates a user recipe and sends it to moderation. The author can use it immediately; other users see it only after approval.",
+ *     description="Отправить свой рецепт на модерацию. multipart/form-data: name, portions, ingredients (JSON-строка из product_id и grams), steps (JSON-строка шагов), photo (файл, необязательно), meal_types, components, cooking_methods, diets (JSON-массивы значений фильтра). КБЖУ считает сервер. Категории модератор может поправить. Пока он не подтвердит, рецепта нет в списке.",
  *     operationId="createUserRecepie",
  *     tags={"Diary - Recipes"},
  *     security={{"userSanctumToken": {}}},
  *     @OA\RequestBody(
  *         required=true,
  *         @OA\MediaType(
- *             mediaType="application/json",
+ *             mediaType="multipart/form-data",
  *             @OA\Schema(
- *                 required={"name", "instructions", "calories", "proteins", "fats", "carbs"},
- *                 @OA\Property(property="name", type="string", example="Oatmeal"),
- *                 @OA\Property(property="instructions", type="string", example="Mix oats with water"),
- *                 @OA\Property(property="calories", type="number", example=150),
- *                 @OA\Property(property="proteins", type="number", example=5),
- *                 @OA\Property(property="fats", type="number", example=3),
- *                 @OA\Property(property="carbs", type="number", example=27),
- *                 @OA\Property(
- *                     property="ingredient_ids",
- *                     type="array",
- *                     @OA\Items(type="integer"),
- *                     example={1, 2}
- *                 )
+ *                 required={"name", "ingredients"},
+ *                 @OA\Property(property="name", type="string", example="Тыквенный суп"),
+ *                 @OA\Property(property="portions", type="integer", example=2),
+ *                 @OA\Property(property="ingredients", type="string", description="JSON array of product_id and grams"),
+ *                 @OA\Property(property="steps", type="string", description="JSON array of cooking steps"),
+ *                 @OA\Property(property="meal_types", type="string", description="JSON array: breakfast, lunch, dinner, snack"),
+ *                 @OA\Property(property="components", type="string", description="JSON array: poultry, meat, fish, vegetables, fruits, sweet"),
+ *                 @OA\Property(property="cooking_methods", type="string", description="JSON array: boiled, steamed, fried, stew, baked, basic"),
+ *                 @OA\Property(property="diets", type="string", description="JSON array: vegetarian, vegan, low_fat, lots_of_fiber, low_carb, keto_diet, high_protein, lactose_free"),
+ *                 @OA\Property(property="photo", type="string", format="binary", nullable=true)
  *             )
  *         )
  *     ),

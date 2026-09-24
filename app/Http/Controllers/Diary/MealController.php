@@ -14,6 +14,8 @@ use App\Models\Recepies\RecepieCookingMethod;
 use App\Models\Recepies\RecepieDiet;
 
 use App\Http\Controllers\Controller;
+use App\Models\UserFavoriteUserRecepie;
+use App\Services\DiaryBrowse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -28,6 +30,38 @@ class MealController extends Controller
         }
         
         $productsOrRecepies = $request->get('productsOrRecepies') ?? 'products';
+
+        if ($productsOrRecepies == 'products' && $request->expectsJson()) {
+            $list = $request->get('list', 'frequent');
+            if (!in_array($list, ['frequent', 'recent', 'favorites'], true)) {
+                $list = 'frequent';
+            }
+            $products = app(DiaryBrowse::class)->products($user->id, $list, trim((string) $request->get('q', '')));
+
+            return response()->json([
+                'success' => true,
+                'list' => $list,
+                'products' => $products,
+                'recepies' => null,
+                'meal_type' => $mealType,
+            ]);
+        }
+
+        if ($productsOrRecepies == 'recepies' && $request->expectsJson()) {
+            $list = $request->get('list', 'all');
+            if (!in_array($list, ['all', 'favorites'], true)) {
+                $list = 'all';
+            }
+            $recepies = app(DiaryBrowse::class)->recepies($user->id, $list, trim((string) $request->get('q', '')));
+
+            return response()->json([
+                'success' => true,
+                'list' => $list,
+                'products' => null,
+                'recepies' => $recepies,
+                'meal_type' => $mealType,
+            ]);
+        }
 
         if ($productsOrRecepies == 'products') {
             $favoriteProductsId = UserFavoriteProduct::where('user_id', $user->id)
@@ -70,27 +104,16 @@ class MealController extends Controller
             } else {
                 $recepies = Recepie::limit(16)->get();
             }
-            $userRecepies = UserRecepie::where('user_id', $user->id)->get();
-            $publicUserRecepies = UserRecepie::approved()
-                ->where('user_id', '!=', $user->id)
-                ->limit(16)
-                ->get();
-
+            $userRecepies = UserRecepie::with('items')->approved()->limit(16)->get();
             $userRecepies->each(function ($recepie) {
                 $recepie->setAttribute('is_user_recepie', true);
             });
-            $publicUserRecepies->each(function ($recepie) {
-                $recepie->setAttribute('is_user_recepie', true);
-            });
 
-            $allRecepies = $userRecepies->concat($publicUserRecepies)->concat($recepies);
+            $allRecepies = $userRecepies->concat($recepies);
 
             foreach ($allRecepies as $recepie) {
-                if (in_array($recepie->id, $favoriteRecepiesId)) {
-                    $recepie->is_favorite = true;
-                } else {
-                    $recepie->is_favorite = false;
-                }
+                $isCatalog = empty($recepie->is_user_recepie);
+                $recepie->is_favorite = $isCatalog && in_array($recepie->id, $favoriteRecepiesId);
             }
 
             if ($request->expectsJson()) {
@@ -135,17 +158,22 @@ class MealController extends Controller
             return redirect()->route('meal');
 
         } elseif ($productsOrRecepies == 'recepies') {
-            $recepieId = $request->get('recepie_id');
+            $recepieId = $request->get('user_recepie_id') ?: $request->get('recepie_id');
+            $isUserRecepie = $request->boolean('is_user_recepie') || $request->filled('user_recepie_id');
+            $favorite = $isUserRecepie
+                ? UserFavoriteUserRecepie::query()
+                : UserFavoriteRecepie::query();
+            $column = $isUserRecepie ? 'user_recepie_id' : 'recepie_id';
             if ($isFavorite == false) {
-                UserFavoriteRecepie::create([
+                $favorite->firstOrCreate([
                     'user_id' => $userId,
-                    'recepie_id' => $recepieId
+                    $column => $recepieId,
                 ]);
             } elseif ($isFavorite == true) {
-                UserFavoriteRecepie::where([
+                $favorite->where([
                     'user_id' => $userId,
-                    'recepie_id' => $recepieId
-                ])->delete();    
+                    $column => $recepieId,
+                ])->delete();
             }
 
             if ($request->expectsJson()) {
@@ -164,12 +192,7 @@ class MealController extends Controller
         if ($request->expectsJson()) {
             return response()->json([
                 'success' => true,
-                'filters' => [
-                    'meal_types' => ['breakfast', 'lunch', 'dinner', 'snack'],
-                    'components' => ['poultry', 'meat', 'fish', 'vegetables', 'fruits', 'sweet'],
-                    'cooking_methods' => ['boiled', 'steamed', 'fried', 'stew', 'baked', 'basic'],
-                    'diets' => ['vegetarian', 'vegan', 'low_fat', 'lots_of_fiber', 'low_carb', 'keto_diet', 'high_protein', 'lactose_free']
-                ]
+                'filters' => app(DiaryBrowse::class)->filters(Auth::id())
             ]);
         }
         return view('diary.filters');
@@ -193,33 +216,12 @@ class MealController extends Controller
             $diet = [$diet];
         }
 
-        $allFilters = [
-            RecepieMealType::class => [$mealType, 'meal_type'],
-            RecepieComponent::class => [$component, 'component'],
-            RecepieCookingMethod::class => [$cookingMethod, 'cooking_method'],
-            RecepieDiet::class => [$diet, 'diet']
-        ];
-
-        $correctIds = [];
-        foreach ($allFilters as $modelClass => [$filterType, $fieldName]) {
-            if ($filterType) {
-                foreach ($filterType as $filter) {
-                    $newIds = $modelClass::where($fieldName, $filter)
-                        ->pluck('recepie_id')
-                        ->toArray();
-
-                    $correctIds = array_merge($correctIds, $newIds);
-                }
-            }
-        }
-        
-        $uniqueIds = array_unique($correctIds);
-
-        if (empty($uniqueIds) && empty($mealType) && empty($component) && empty($cookingMethod) && empty($diet)) {
-            $recepies = Recepie::limit(6)->get();
-        } else {
-            $recepies = Recepie::whereIn('id', $uniqueIds)->limit(6)->get();
-        }
+        $recepies = app(DiaryBrowse::class)->applyFilters(Auth::id(), [
+            'meal_type' => array_values(array_filter($mealType)),
+            'component' => array_values(array_filter($component)),
+            'cooking_method' => array_values(array_filter($cookingMethod)),
+            'diet' => array_values(array_filter($diet)),
+        ]);
         
         if (count($recepies) == 0) {
             $recepies = null;

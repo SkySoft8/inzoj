@@ -23,7 +23,15 @@
                 @endforeach
             </div>
             <p class="text-lg font-medium">Приготовление</p>
-            <p>{{ $recepie->instructions }}</p>
+            @if (!empty($recepie->steps))
+                <ol class="list-decimal pl-5">
+                    @foreach ($recepie->steps as $step)
+                        <li>{{ $step }}</li>
+                    @endforeach
+                </ol>
+            @else
+                <p>{{ $recepie->instructions ?? '' }}</p>
+            @endif
         </div>
     </div>
 

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Restaurants\Restaurant;
 use App\Models\TrainerUser;
 use App\Models\UserRecepie;
+use App\Services\DiaryBrowse;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 
@@ -55,7 +56,7 @@ class ModerationController extends Controller
 
     public function showRecipe(Request $request, $id)
     {
-        $recipe = UserRecepie::with(['user:id,name,email', 'ingredients'])->find($id);
+        $recipe = UserRecepie::with(['user:id,name,email', 'ingredients', 'items.product'])->find($id);
 
         if (!$recipe) {
             return $this->notFound($request, 'Recipe not found');
@@ -77,6 +78,22 @@ class ModerationController extends Controller
 
         if (!$recipe) {
             return $this->notFound($request, 'Recipe not found');
+        }
+
+        if (in_array($request->input('action'), ['approve', 'tags'], true)) {
+            $this->saveRecipeTags($recipe, $request);
+        }
+
+        if ($request->input('action') === 'tags') {
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Categories saved',
+                    'recipe' => $recipe->fresh(),
+                ]);
+            }
+
+            return back()->with('success', 'Категории сохранены');
         }
 
         return $this->review($recipe, $request);
@@ -175,6 +192,27 @@ class ModerationController extends Controller
         }
 
         return $this->review($trainer, $request);
+    }
+
+    private function saveRecipeTags(UserRecepie $recipe, Request $request): void
+    {
+        $map = [
+            'meal_types' => 'meal_type',
+            'components' => 'component',
+            'cooking_methods' => 'cooking_method',
+            'diets' => 'diet',
+        ];
+        $data = [];
+
+        foreach ($map as $column => $group) {
+            $values = $request->input($column, []);
+            if (!is_array($values)) {
+                $values = [$values];
+            }
+            $data[$column] = array_values(array_intersect($values, DiaryBrowse::FILTERS[$group]));
+        }
+
+        $recipe->update($data);
     }
 
     private function status(Request $request): string

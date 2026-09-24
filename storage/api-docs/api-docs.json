@@ -1544,7 +1544,7 @@
                     "Diary - Meal"
                 ],
                 "summary": "Get meal list (products or recipes)",
-                "description": "Returns list of products or recipes for meal selection",
+                "description": "Products or the shared recipe list. meal_type only remembers which meal screen was opened. Recipe list is approved user recipes, then the catalog. list for products: frequent, recent, favorites. list for recipes: all, favorites. q searches by name.",
                 "operationId": "getMeals",
                 "parameters": [
                     {
@@ -1561,6 +1561,24 @@
                                 "dinner",
                                 "snack"
                             ]
+                        }
+                    },
+                    {
+                        "name": "list",
+                        "in": "query",
+                        "description": "Products: frequent, recent, favorites. Recipes: all, favorites.",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "q",
+                        "in": "query",
+                        "description": "Search by name",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
                         }
                     },
                     {
@@ -1589,6 +1607,10 @@
                                             "type": "boolean",
                                             "example": true
                                         },
+                                        "list": {
+                                            "type": "string",
+                                            "example": "all"
+                                        },
                                         "products": {
                                             "type": "array",
                                             "items": {
@@ -1597,9 +1619,10 @@
                                             "nullable": true
                                         },
                                         "recepies": {
+                                            "description": "Approved user recipes first, then catalog recipes.",
                                             "type": "array",
                                             "items": {
-                                                "$ref": "#/components/schemas/Recepie"
+                                                "$ref": "#/components/schemas/UserRecepie"
                                             },
                                             "nullable": true
                                         },
@@ -1662,9 +1685,19 @@
                                         "example": 2
                                     },
                                     "recepie_id": {
-                                        "description": "Required if productsOrRecepies=recepies",
+                                        "description": "Catalog recipe id",
                                         "type": "integer",
                                         "example": 1
+                                    },
+                                    "is_user_recepie": {
+                                        "description": "True when the heart is on a user recipe",
+                                        "type": "boolean",
+                                        "example": false
+                                    },
+                                    "user_recepie_id": {
+                                        "description": "User recipe id. Send with is_user_recepie true",
+                                        "type": "integer",
+                                        "example": 3
                                     },
                                     "is_favorite": {
                                         "description": "Current favorite status (false = add, true = remove)",
@@ -1717,7 +1750,7 @@
                     "Diary - Meal"
                 ],
                 "summary": "Get available filters",
-                "description": "Returns all available filter options for recipes",
+                "description": "Filter buttons for the recipe list and for the new-recipe form. Each option has value and label. popular is the top row and follows what this user opens most.",
                 "operationId": "getFilters",
                 "responses": {
                     "200": {
@@ -1732,28 +1765,82 @@
                                         },
                                         "filters": {
                                             "properties": {
+                                                "popular": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "properties": {
+                                                            "group": {
+                                                                "type": "string",
+                                                                "example": "meal_type"
+                                                            },
+                                                            "value": {
+                                                                "type": "string",
+                                                                "example": "breakfast"
+                                                            },
+                                                            "label": {
+                                                                "type": "string",
+                                                                "example": "Завтрак"
+                                                            }
+                                                        },
+                                                        "type": "object"
+                                                    }
+                                                },
                                                 "meal_types": {
                                                     "type": "array",
                                                     "items": {
-                                                        "type": "string"
+                                                        "properties": {
+                                                            "value": {
+                                                                "type": "string",
+                                                                "example": "breakfast"
+                                                            },
+                                                            "label": {
+                                                                "type": "string",
+                                                                "example": "Завтрак"
+                                                            }
+                                                        },
+                                                        "type": "object"
                                                     }
                                                 },
                                                 "components": {
                                                     "type": "array",
                                                     "items": {
-                                                        "type": "string"
+                                                        "properties": {
+                                                            "value": {
+                                                                "type": "string"
+                                                            },
+                                                            "label": {
+                                                                "type": "string"
+                                                            }
+                                                        },
+                                                        "type": "object"
                                                     }
                                                 },
                                                 "cooking_methods": {
                                                     "type": "array",
                                                     "items": {
-                                                        "type": "string"
+                                                        "properties": {
+                                                            "value": {
+                                                                "type": "string"
+                                                            },
+                                                            "label": {
+                                                                "type": "string"
+                                                            }
+                                                        },
+                                                        "type": "object"
                                                     }
                                                 },
                                                 "diets": {
                                                     "type": "array",
                                                     "items": {
-                                                        "type": "string"
+                                                        "properties": {
+                                                            "value": {
+                                                                "type": "string"
+                                                            },
+                                                            "label": {
+                                                                "type": "string"
+                                                            }
+                                                        },
+                                                        "type": "object"
                                                     }
                                                 }
                                             },
@@ -1782,7 +1869,7 @@
                     "Diary - Meal"
                 ],
                 "summary": "Apply filters to recipes",
-                "description": "Returns filtered recipes based on selected filters",
+                "description": "Catalog recipes that have the selected tags, plus approved user recipes whose moderator tags match. Inside one group any selected value matches. Groups are combined.",
                 "operationId": "applyFilters",
                 "parameters": [
                     {
@@ -1885,9 +1972,10 @@
                                             "nullable": true
                                         },
                                         "recepies": {
+                                            "description": "Matching user recipes first, then matching catalog recipes.",
                                             "type": "array",
                                             "items": {
-                                                "$ref": "#/components/schemas/Recepie"
+                                                "$ref": "#/components/schemas/UserRecepie"
                                             },
                                             "nullable": true
                                         },
@@ -2844,6 +2932,39 @@
                                 }
                             }
                         }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    }
+                },
+                "security": [
+                    {
+                        "userSanctumToken": []
+                    }
+                ]
+            }
+        },
+        "/api/diary/meal/product/search": {
+            "get": {
+                "tags": [
+                    "Diary - Products"
+                ],
+                "summary": "Search products for a custom recipe",
+                "description": "Name search. calories, proteins, fats and carbs are per 100g. serving_label and serving_grams are the optional portion caption.",
+                "operationId": "searchProducts",
+                "parameters": [
+                    {
+                        "name": "q",
+                        "in": "query",
+                        "schema": {
+                            "type": "string",
+                            "example": "тыква"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Matching products"
                     },
                     "401": {
                         "description": "Unauthenticated"
@@ -3817,7 +3938,7 @@
                     "Diary - Recipes"
                 ],
                 "summary": "Get recipe details",
-                "description": "Returns recipe information for editing or adding to meal",
+                "description": "Recipe card. For a user recipe send is_user_recepie=1. Items with grams are returned for a user recipe. Catalog cooking text is in steps.",
                 "operationId": "getRecepie",
                 "parameters": [
                     {
@@ -3838,6 +3959,16 @@
                         "schema": {
                             "type": "integer",
                             "example": 2
+                        }
+                    },
+                    {
+                        "name": "is_user_recepie",
+                        "in": "query",
+                        "description": "Pass true to open a user recipe",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean",
+                            "example": true
                         }
                     },
                     {
@@ -3878,12 +4009,19 @@
                                             "example": true
                                         },
                                         "recepie": {
-                                            "$ref": "#/components/schemas/Recepie"
+                                            "$ref": "#/components/schemas/UserRecepie"
                                         },
                                         "ingredients": {
                                             "type": "array",
                                             "items": {
                                                 "$ref": "#/components/schemas/RecepieIngredient"
+                                            }
+                                        },
+                                        "items": {
+                                            "description": "User recipe lines: product and grams",
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object"
                                             }
                                         },
                                         "amount": {
@@ -3961,7 +4099,7 @@
                     "Diary - Recipes"
                 ],
                 "summary": "Add recipe to meal",
-                "description": "Adds a recipe to the specified meal",
+                "description": "Writes the recipe into the opened meal. Catalog: recepie_id. User recipe: is_user_recepie true and user_recepie_id. amount is grams and may be omitted for a user recipe; then one portion is used. The recipe must already be approved.",
                 "operationId": "addRecepieToMeal",
                 "parameters": [
                     {
@@ -3981,18 +4119,25 @@
                         "application/json": {
                             "schema": {
                                 "required": [
-                                    "recepie_id",
-                                    "meal_type",
-                                    "amount"
+                                    "meal_type"
                                 ],
                                 "properties": {
                                     "recepie_id": {
-                                        "description": "**REQUIRED**. Recipe ID",
+                                        "description": "Catalog recipe id",
                                         "type": "integer",
                                         "example": 1
                                     },
+                                    "is_user_recepie": {
+                                        "type": "boolean",
+                                        "example": true
+                                    },
+                                    "user_recepie_id": {
+                                        "description": "Approved user recipe id",
+                                        "type": "integer",
+                                        "example": 3
+                                    },
                                     "meal_type": {
-                                        "description": "**REQUIRED**. Type of meal",
+                                        "description": "Meal screen to write into",
                                         "type": "string",
                                         "enum": [
                                             "breakfast",
@@ -4002,7 +4147,7 @@
                                         ]
                                     },
                                     "amount": {
-                                        "description": "**REQUIRED**. Amount in grams",
+                                        "description": "Grams. Optional for a user recipe",
                                         "type": "integer",
                                         "example": 100
                                     }
@@ -4224,55 +4369,54 @@
                     "Diary - Recipes"
                 ],
                 "summary": "Create a user recipe",
-                "description": "Creates a user recipe and sends it to moderation. The author can use it immediately; other users see it only after approval.",
+                "description": "Отправить свой рецепт на модерацию. multipart/form-data: name, portions, ingredients (JSON-строка из product_id и grams), steps (JSON-строка шагов), photo (файл, необязательно), meal_types, components, cooking_methods, diets (JSON-массивы значений фильтра). КБЖУ считает сервер. Категории модератор может поправить. Пока он не подтвердит, рецепта нет в списке.",
                 "operationId": "createUserRecepie",
                 "requestBody": {
                     "required": true,
                     "content": {
-                        "application/json": {
+                        "multipart/form-data": {
                             "schema": {
                                 "required": [
                                     "name",
-                                    "instructions",
-                                    "calories",
-                                    "proteins",
-                                    "fats",
-                                    "carbs"
+                                    "ingredients"
                                 ],
                                 "properties": {
                                     "name": {
                                         "type": "string",
-                                        "example": "Oatmeal"
+                                        "example": "Тыквенный суп"
                                     },
-                                    "instructions": {
+                                    "portions": {
+                                        "type": "integer",
+                                        "example": 2
+                                    },
+                                    "ingredients": {
+                                        "description": "JSON array of product_id and grams",
+                                        "type": "string"
+                                    },
+                                    "steps": {
+                                        "description": "JSON array of cooking steps",
+                                        "type": "string"
+                                    },
+                                    "meal_types": {
+                                        "description": "JSON array: breakfast, lunch, dinner, snack",
+                                        "type": "string"
+                                    },
+                                    "components": {
+                                        "description": "JSON array: poultry, meat, fish, vegetables, fruits, sweet",
+                                        "type": "string"
+                                    },
+                                    "cooking_methods": {
+                                        "description": "JSON array: boiled, steamed, fried, stew, baked, basic",
+                                        "type": "string"
+                                    },
+                                    "diets": {
+                                        "description": "JSON array: vegetarian, vegan, low_fat, lots_of_fiber, low_carb, keto_diet, high_protein, lactose_free",
+                                        "type": "string"
+                                    },
+                                    "photo": {
                                         "type": "string",
-                                        "example": "Mix oats with water"
-                                    },
-                                    "calories": {
-                                        "type": "number",
-                                        "example": 150
-                                    },
-                                    "proteins": {
-                                        "type": "number",
-                                        "example": 5
-                                    },
-                                    "fats": {
-                                        "type": "number",
-                                        "example": 3
-                                    },
-                                    "carbs": {
-                                        "type": "number",
-                                        "example": 27
-                                    },
-                                    "ingredient_ids": {
-                                        "type": "array",
-                                        "items": {
-                                            "type": "integer"
-                                        },
-                                        "example": [
-                                            1,
-                                            2
-                                        ]
+                                        "format": "binary",
+                                        "nullable": true
                                     }
                                 },
                                 "type": "object"
@@ -9424,6 +9568,22 @@
                         "format": "float",
                         "example": 14
                     },
+                    "serving_label": {
+                        "description": "Portion name. Empty means no portion caption.",
+                        "type": "string",
+                        "example": "кружка",
+                        "nullable": true
+                    },
+                    "serving_grams": {
+                        "description": "Grams in serving_label. Calories stay per 100g.",
+                        "type": "integer",
+                        "example": 200,
+                        "nullable": true
+                    },
+                    "is_favorite": {
+                        "type": "boolean",
+                        "example": false
+                    },
                     "created_at": {
                         "type": "string",
                         "format": "date-time"
@@ -9475,6 +9635,29 @@
                         "type": "number",
                         "format": "float",
                         "example": 15
+                    },
+                    "image_url": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "steps": {
+                        "description": "Catalog text as a single step.",
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "is_user_recepie": {
+                        "type": "boolean",
+                        "example": false
+                    },
+                    "is_favorite": {
+                        "type": "boolean",
+                        "example": false
+                    },
+                    "bju": {
+                        "description": "Card calories and macros.",
+                        "type": "object"
                     },
                     "created_at": {
                         "type": "string",
@@ -9532,10 +9715,6 @@
                         "type": "string",
                         "example": "Oatmeal"
                     },
-                    "instructions": {
-                        "type": "string",
-                        "example": "Mix oats with water"
-                    },
                     "calories": {
                         "type": "number",
                         "format": "float",
@@ -9552,9 +9731,65 @@
                         "example": 3
                     },
                     "carbs": {
+                        "description": "Per 100g of the cooked mix",
                         "type": "number",
                         "format": "float",
                         "example": 27
+                    },
+                    "portions": {
+                        "type": "integer",
+                        "example": 2
+                    },
+                    "steps": {
+                        "description": "Cooking steps. This is the only cooking field on a user recipe.",
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "meal_types": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "components": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "cooking_methods": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "diets": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "image_url": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "is_user_recepie": {
+                        "type": "boolean",
+                        "example": true
+                    },
+                    "is_favorite": {
+                        "type": "boolean",
+                        "example": false
+                    },
+                    "bju": {
+                        "description": "Card values for one portion.",
+                        "type": "object"
+                    },
+                    "per_portion": {
+                        "description": "KBJU for one portion",
+                        "type": "object"
                     },
                     "moderation_status": {
                         "type": "string",

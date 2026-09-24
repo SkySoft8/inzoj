@@ -4,9 +4,6 @@ namespace App\Http\Controllers\Diary;
 
 use App\Models\DiaryNote;
 use App\Models\UserMeal;
-use App\Models\Product;
-use App\Models\Recepies\Recepie;
-use App\Models\Restaurants\Dish; 
 use App\Models\Activity;
 use App\Models\UserActivity;
 
@@ -105,21 +102,13 @@ class DiaryNoteController extends Controller
                 ];
 
                 foreach ($userMeals[$type] as $currentMeal) {
-                    if ($currentMeal->product_id) {
-                        $model = Product::class;
-                        $itemType = 'product';
-                        $id = $currentMeal->product_id;
-                    } elseif ($currentMeal->recepie_id) {
-                        $model = Recepie::class;
-                        $id = $currentMeal->recepie_id;
-                        $itemType = 'recepie';
-                    } elseif ($currentMeal->dish_id) {
-                        $model = Dish::class;
-                        $id = $currentMeal->dish_id;
-                        $itemType = 'dish';
+                    $source = $currentMeal->nutritionSource();
+                    if (!$source) {
+                        continue;
                     }
 
-                    $item = $model::find($id);
+                    $item = $source['item'];
+                    $itemType = $source['type'];
                     $ratio = $currentMeal->amount / 100;
     
                     $userMealData[$type]['proteins'] += round($item->proteins * $ratio, 1);

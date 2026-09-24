@@ -14,6 +14,8 @@ class Product extends Model
         'calories',
         'proteins',
         'fats',
-        'carbs'
+        'carbs',
+        'serving_label',
+        'serving_grams',
     ];
 }
