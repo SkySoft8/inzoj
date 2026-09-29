@@ -106,6 +106,7 @@ Route::middleware('auth:sanctum')->group(function () {
             
             // Продукты
             Route::prefix('product')->group(function () {
+                Route::get('/search', [ProductController::class, 'search']);
                 Route::get('/', [ProductController::class, 'show']);
                 Route::post('/add', [ProductController::class, 'addMealProduct']);
                 Route::put('/update', [ProductController::class, 'updateMealProduct']);

@@ -5,18 +5,35 @@ namespace App\Http\Controllers\Diary;
 use App\Models\DiaryNote;
 use App\Models\UserMeal;
 use App\Models\Product;
-use App\Models\Recepies\Recepie;
-use App\Models\Restaurants\Dish; 
 
 use App\Models\UserFavoriteProduct;
 
 
 use App\Http\Controllers\Controller;
+use App\Services\DiaryBrowse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
 class ProductController extends Controller
 {
+    public function search(Request $request)
+    {
+        $query = trim((string) $request->get('q', ''));
+
+        $products = Product::query()
+            ->when($query !== '', function ($builder) use ($query) {
+                $builder->where('name', 'like', '%'.$query.'%');
+            })
+            ->orderBy('name')
+            ->limit(30)
+            ->get(['id', 'name', 'calories', 'proteins', 'fats', 'carbs', 'serving_label', 'serving_grams']);
+
+        return response()->json([
+            'success' => true,
+            'products' => $products,
+        ]);
+    }
+
     public function show (Request $request) {
         [$userId, $diaryNoteId, $productId, $mealType, $amount, $userMealId] = $this->getData($request);
 
@@ -56,6 +73,8 @@ class ProductController extends Controller
             'amount' => $amount
         ]);
 
+        app(DiaryBrowse::class)->rememberProduct($userId, (int) $productId);
+
         $userMealId = $userMeal->id;
 
         return $this->recount($userId, $diaryNoteId, true, $request, $userMealId);
@@ -85,21 +104,13 @@ class ProductController extends Controller
         ];
 
         foreach ($currentMeals as $meal) {
-            if ($meal->recepie_id) {
-                foreach (array_keys($newData) as $key) {
-                    $recepie = Recepie::find($meal->recepie_id);
-                    $newData[$key] += round($recepie->$key * $meal->amount / 100, 1);
-                }
-            } elseif ($meal->product_id) {
-                foreach (array_keys($newData) as $key) {
-                    $product = Product::find($meal->product_id);
-                    $newData[$key] += round($product->$key * $meal->amount / 100, 1);
-                }
-            } elseif ($meal->dish_id) {
-                foreach (array_keys($newData) as $key) {
-                    $dish = Dish::find($meal->dish_id);
-                    $newData[$key] += round($dish->$key * $meal->amount / 100, 1);
-                }
+            $source = $meal->nutritionSource();
+            if (!$source) {
+                continue;
+            }
+            $ratio = $meal->amount / 100;
+            foreach (array_keys($newData) as $key) {
+                $newData[$key] += round($source['item']->{$key} * $ratio, 1);
             }
         }
 

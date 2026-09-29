@@ -19,4 +19,35 @@ class Recepie extends Model
         'carbs'
     ];
 
+    protected $appends = [
+        'image_url',
+        'steps',
+        'is_user_recepie',
+    ];
+
+    public function getImageUrlAttribute(): ?string
+    {
+        if (!$this->image) {
+            return null;
+        }
+
+        if (str_starts_with($this->image, 'http://') || str_starts_with($this->image, 'https://')) {
+            return $this->image;
+        }
+
+        return url($this->image);
+    }
+
+    public function getStepsAttribute(): array
+    {
+        $text = trim((string) ($this->attributes['instructions'] ?? ''));
+
+        return $text === '' ? [] : [$text];
+    }
+
+    public function getIsUserRecepieAttribute(): bool
+    {
+        return false;
+    }
+
 }

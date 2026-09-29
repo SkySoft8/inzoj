@@ -12,6 +12,18 @@ use Illuminate\Http\Request;
  * )
  * 
  * @OA\Get(
+ *     path="/api/diary/meal/product/search",
+ *     summary="Search products for a custom recipe",
+ *     description="Name search. calories, proteins, fats and carbs are per 100g. serving_label and serving_grams are the optional portion caption.",
+ *     operationId="searchProducts",
+ *     tags={"Diary - Products"},
+ *     security={{"userSanctumToken": {}}},
+ *     @OA\Parameter(name="q", in="query", @OA\Schema(type="string", example="тыква")),
+ *     @OA\Response(response=200, description="Matching products"),
+ *     @OA\Response(response=401, description="Unauthenticated")
+ * )
+ *
+ * @OA\Get(
  *     path="/api/diary/meal/product",
  *     summary="Get product details",
  *     description="Returns product information for editing or adding to meal",
