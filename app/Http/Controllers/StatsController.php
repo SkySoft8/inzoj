@@ -6,6 +6,7 @@ use App\Models\BodyLog;
 use App\Models\DiaryNote;
 use App\Models\ProgressPhoto;
 use App\Services\NutritionCalculator;
+use App\Services\WeekStats;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
@@ -53,6 +54,44 @@ class StatsController extends Controller
         }
 
         return response()->json($payload);
+    }
+
+    public function week(Request $request)
+    {
+        $validated = $request->validate([
+            'from' => 'nullable|date',
+            'to' => 'nullable|date',
+        ]);
+
+        if (empty($validated['from']) && empty($validated['to'])) {
+            $from = now()->startOfWeek()->startOfDay();
+            $to = now()->endOfWeek()->startOfDay();
+        } elseif (empty($validated['to'])) {
+            $from = Carbon::parse($validated['from'])->startOfDay();
+            $to = $from->copy()->addDays(6);
+        } elseif (empty($validated['from'])) {
+            $to = Carbon::parse($validated['to'])->startOfDay();
+            $from = $to->copy()->subDays(6);
+        } else {
+            $from = Carbon::parse($validated['from'])->startOfDay();
+            $to = Carbon::parse($validated['to'])->startOfDay();
+        }
+
+        if ($to->lt($from)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'to must be on or after from',
+            ], 422);
+        }
+
+        if ($from->diffInDays($to) > 30) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Period must be 31 days or less',
+            ], 422);
+        }
+
+        return response()->json(WeekStats::build(Auth::user(), $from, $to));
     }
 
     public function series(Request $request)

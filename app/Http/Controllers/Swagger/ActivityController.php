@@ -34,6 +34,13 @@ use Illuminate\Http\Request;
  *         description="Type of activity"
  *     ),
  *     @OA\Parameter(
+ *         name="list",
+ *         in="query",
+ *         required=false,
+ *         @OA\Schema(type="string", enum={"frequent", "recent", "favorites"}, default="frequent"),
+ *         description="frequent, recent, or favorites. Default frequent"
+ *     ),
+ *     @OA\Parameter(
  *         name="q",
  *         in="query",
  *         required=false,

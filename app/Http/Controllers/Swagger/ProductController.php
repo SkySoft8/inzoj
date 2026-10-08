@@ -70,7 +70,10 @@ use Illuminate\Http\Request;
  *             type="object",
  *             @OA\Property(property="success", type="boolean", example=true),
  *             @OA\Property(property="product", ref="#/components/schemas/Product"),
- *             @OA\Property(property="amount", type="integer", example=100),
+ *             @OA\Property(property="amount", type="integer", example=120, description="Grams used for nutrition"),
+ *             @OA\Property(property="portion_quantity", type="integer", nullable=true, example=1),
+ *             @OA\Property(property="portion_unit", type="string", nullable=true, enum={"g", "pcs", "ml"}, example="pcs"),
+ *             @OA\Property(property="portion_label", type="string", nullable=true, example="1 шт"),
  *             @OA\Property(property="diary_note_id", type="integer", example=33),
  *             @OA\Property(property="user_meal_id", type="integer", nullable=true)
  *         )
@@ -109,10 +112,12 @@ use Illuminate\Http\Request;
  *         @OA\MediaType(
  *             mediaType="application/json",
  *             @OA\Schema(
- *                 required={"product_id", "meal_type", "amount"},
- *                 @OA\Property(property="product_id", type="integer", example=3, description="**REQUIRED**"),
- *                 @OA\Property(property="meal_type", type="string", enum={"breakfast", "lunch", "dinner", "snack"}, description="**REQUIRED**"),
- *                 @OA\Property(property="amount", type="integer", example=100, description="**REQUIRED**. Amount in grams")
+ *                 required={"product_id", "meal_type", "quantity"},
+ *                 @OA\Property(property="product_id", type="integer", example=3),
+ *                 @OA\Property(property="meal_type", type="string", enum={"breakfast", "lunch", "dinner", "snack"}),
+ *                 @OA\Property(property="quantity", type="integer", example=1, description="How many units"),
+ *                 @OA\Property(property="unit", type="string", enum={"g", "pcs", "ml"}, example="pcs", description="g is always allowed. pcs and ml only if the product has that measure"),
+ *                 @OA\Property(property="amount", type="integer", example=100, description="Legacy grams. Used when quantity is omitted")
  *             )
  *         )
  *     ),
@@ -162,9 +167,11 @@ use Illuminate\Http\Request;
  *         @OA\MediaType(
  *             mediaType="application/json",
  *             @OA\Schema(
- *                 required={"user_meal_id", "amount"},
- *                 @OA\Property(property="user_meal_id", type="integer", example=49, description="**REQUIRED**. User meal ID"),
- *                 @OA\Property(property="amount", type="integer", example=150, description="**REQUIRED**. New amount in grams")
+ *                 required={"user_meal_id", "quantity"},
+ *                 @OA\Property(property="user_meal_id", type="integer", example=49),
+ *                 @OA\Property(property="quantity", type="integer", example=1),
+ *                 @OA\Property(property="unit", type="string", enum={"g", "pcs", "ml"}, example="g"),
+ *                 @OA\Property(property="amount", type="integer", example=150, description="Legacy grams")
  *             )
  *         )
  *     ),

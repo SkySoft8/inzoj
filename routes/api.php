@@ -98,6 +98,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::prefix('diary')->group(function () {
         Route::get('/', [DiaryNoteController::class, 'show']);
         Route::get('/item', [DiaryNoteController::class, 'redirection']);
+        Route::delete('/item', [DiaryNoteController::class, 'destroyItem']);
         
         // Приемы пищи
         Route::prefix('meal')->group(function () {
@@ -147,6 +148,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::prefix('stats')->group(function () {
         Route::get('/summary', [StatsController::class, 'summary']);
+        Route::get('/week', [StatsController::class, 'week']);
         Route::get('/series', [StatsController::class, 'series']);
         Route::get('/compare', [StatsController::class, 'compare']);
         Route::get('/logs', [StatsController::class, 'logs']);
@@ -179,6 +181,7 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::get('/trainings', [SportController::class, 'show']);
             Route::post('/signup', [SportController::class, 'signUp']);
             Route::get('/user-trainings', [SportController::class, 'userTrainings']);
+            Route::post('/add-to-diary', [SportController::class, 'addToDiary']);
             Route::delete('/revoke', [SportController::class, 'revoke']);
             Route::post('/trainer', [SportController::class, 'trainer']);
             Route::get('/trainer/rating', [SportController::class, 'rating']);

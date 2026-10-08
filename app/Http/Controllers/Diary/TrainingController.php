@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Diary;
 
 use App\Models\Activity;
 use App\Models\UserActivity;
+use App\Models\UserActivityStat;
 use App\Models\DiaryNote;
 use App\Models\UserFavoriteActivity;
 
@@ -87,7 +88,14 @@ class TrainingController extends Controller
 
     public function addTraining(Request $request)
     {
-        [$userId, $diaryNoteId, $trainingId, $timeType, $timeCount, $calories] = $this->getData($request);
+        [$userId, $diaryNoteId, $trainingId, $timeType, $timeCount] = $this->getData($request);
+
+        if (!$diaryNoteId || !DiaryNote::where('id', $diaryNoteId)->where('user_id', $userId)->exists()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Diary note not found',
+            ], 404);
+        }
 
         $activity = Activity::visibleTo(Auth::user())->find($trainingId);
         if (!$activity) {
@@ -100,6 +108,11 @@ class TrainingController extends Controller
             abort(404, 'Training not found');
         }
 
+        $calories = $this->caloriesForRequest($activity, $timeCount, $timeType);
+        if ($calories instanceof \Illuminate\Http\JsonResponse) {
+            return $calories;
+        }
+
         $userActivity = UserActivity::create([
             'user_id' => $userId,
             'diary_note_id' => $diaryNoteId,
@@ -109,12 +122,14 @@ class TrainingController extends Controller
             'calories' => $calories,
         ]);
 
+        $this->rememberActivity($userId, (int) $trainingId);
+
         return $this->recount($diaryNoteId, true, $request, $userActivity->id);
     }
 
     public function updateTraining(Request $request)
     {
-        [$userId, $diaryNoteId, $trainingId, $timeType, $timeCount, $calories] = $this->getData($request);
+        [$userId, $diaryNoteId, $trainingId, $timeType, $timeCount] = $this->getData($request);
 
         $userActivityId = $request->get('user_activity_id');
         $userActivity = UserActivity::where('user_id', $userId)->find($userActivityId);
@@ -127,6 +142,14 @@ class TrainingController extends Controller
                 ], 404);
             }
             abort(404, 'User activity not found');
+        }
+
+        $activity = Activity::visibleTo(Auth::user())->find($userActivity->activity_id);
+        $calories = $activity
+            ? $this->caloriesForRequest($activity, $timeCount, $timeType)
+            : response()->json(['success' => false, 'message' => 'Training not found'], 404);
+        if ($calories instanceof \Illuminate\Http\JsonResponse) {
+            return $calories;
         }
 
         $userActivity->update([
@@ -182,10 +205,15 @@ class TrainingController extends Controller
                 $message = 'Training added successfully';
             }
 
+            $saved = $userActivityId ? UserActivity::find($userActivityId) : null;
+
             return response()->json([
                 'success' => true,
                 'message' => $message,
                 'user_activity_id' => $userActivityId,
+                'time_count' => $saved?->time_count,
+                'time_type' => $saved?->time_type,
+                'calories' => $saved?->calories,
                 'burned_calories' => $sumCalories,
                 'diary_note_id' => $diaryNoteId,
             ]);
@@ -213,5 +241,34 @@ class TrainingController extends Controller
         }
 
         return [$userId, $diaryNoteId, $trainingId, $timeType, $timeCount, $calories, $userActivityId];
+    }
+
+    private function caloriesForRequest(Activity $activity, $timeCount, $timeType)
+    {
+        if (!in_array($timeType, ['minute', 'hour'], true) || !is_numeric($timeCount) || (int) $timeCount < 1) {
+            return response()->json([
+                'success' => false,
+                'message' => 'time_count and time_type are required',
+            ], 422);
+        }
+
+        try {
+            return $activity->caloriesFor((int) $timeCount, $timeType);
+        } catch (\InvalidArgumentException $exception) {
+            return response()->json([
+                'success' => false,
+                'message' => $exception->getMessage(),
+            ], 422);
+        }
+    }
+
+    private function rememberActivity(int $userId, int $activityId): void
+    {
+        $stat = UserActivityStat::firstOrCreate(
+            ['user_id' => $userId, 'activity_id' => $activityId],
+            ['times' => 0]
+        );
+        $stat->increment('times');
+        $stat->update(['last_added_at' => now()]);
     }
 }

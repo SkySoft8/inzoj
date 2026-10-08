@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Diary;
 
 use App\Models\DiaryNote;
 use App\Models\UserMeal;
-use App\Models\Activity;
 use App\Models\UserActivity;
 
 use App\Http\Controllers\Controller;
@@ -119,7 +118,10 @@ class DiaryNoteController extends Controller
                         'user_meal_id' => $currentMeal->id,
                         'item' => $item,
                         'item_type' => $itemType,
-                        'amount' => $currentMeal->amount
+                        'amount' => $currentMeal->amount,
+                        'portion_quantity' => $currentMeal->portion_quantity,
+                        'portion_unit' => $currentMeal->portion_unit,
+                        'portion_label' => $currentMeal->portionLabel(),
                     ];
                 }
             }
@@ -127,18 +129,20 @@ class DiaryNoteController extends Controller
 
         $allUserActivities = UserActivity::where('user_id', $user->id)
             ->where('diary_note_id', $noteData->id)
+            ->with(['activity', 'training'])
             ->get();
 
         $userActivityData = [];
-        if ($allUserActivities != []) {
-            foreach ($allUserActivities as $userActivity) {
-                $training = Activity::find($userActivity->activity_id);
-                $userActivityData[] = [
-                    'name' => $training?->name,
-                    'activity' => $userActivity,
-                    'catalog' => $training ? $training->toApiArray($user) : null,
-                ];
-            }
+        foreach ($allUserActivities as $userActivity) {
+            $catalog = $userActivity->activity;
+            $name = $userActivity->diaryName();
+            $userActivity->unsetRelation('activity');
+            $userActivity->unsetRelation('training');
+            $userActivityData[] = [
+                'name' => $name,
+                'activity' => $userActivity,
+                'catalog' => $catalog ? $catalog->toApiArray($user) : null,
+            ];
         }
 
         if ($request->expectsJson()) {        
@@ -215,5 +219,69 @@ class DiaryNoteController extends Controller
                 session(['user_meal_id' => $userMealId]);
                 return redirect()->route('dish', ['user_meal_id' => $userMealId]);
         }
+    }
+
+    public function destroyItem(Request $request)
+    {
+        $userId = Auth::id();
+        $userMealId = $request->get('user_meal_id');
+        $meal = UserMeal::where('id', $userMealId)->where('user_id', $userId)->first();
+
+        if (!$meal) {
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'User meal not found',
+                ], 404);
+            }
+            abort(404, 'User meal not found');
+        }
+
+        $diaryNoteId = $meal->diary_note_id;
+        $meal->delete();
+        $this->recountDiaryNote($userId, $diaryNoteId);
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Meal item removed',
+                'diary_note_id' => $diaryNoteId,
+                'user_meal_id' => (int) $userMealId,
+            ]);
+        }
+
+        return redirect()->route('diary');
+    }
+
+    private function recountDiaryNote(int $userId, int $diaryNoteId): void
+    {
+        $totals = [
+            'calories' => 0,
+            'proteins' => 0,
+            'fats' => 0,
+            'carbs' => 0,
+        ];
+
+        $meals = UserMeal::where('user_id', $userId)
+            ->where('diary_note_id', $diaryNoteId)
+            ->get();
+
+        foreach ($meals as $meal) {
+            $source = $meal->nutritionSource();
+            if (!$source) {
+                continue;
+            }
+            $ratio = $meal->amount / 100;
+            foreach (array_keys($totals) as $key) {
+                $totals[$key] += round($source['item']->{$key} * $ratio, 1);
+            }
+        }
+
+        DiaryNote::where('id', $diaryNoteId)->where('user_id', $userId)->update([
+            'current_calories' => $totals['calories'],
+            'current_proteins' => $totals['proteins'],
+            'current_fats' => $totals['fats'],
+            'current_carbs' => $totals['carbs'],
+        ]);
     }
 }

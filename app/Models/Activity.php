@@ -88,6 +88,42 @@ class Activity extends Model
             'video_url' => $canWatch ? $this->video_url : null,
             'video_locked' => $hasVideo && !$canWatch,
             'is_favorite' => $isFavorite,
+            'duration_minutes' => $this->durationMinutes(),
         ];
+    }
+
+    public function durationMinutes(): ?int
+    {
+        $time = trim((string) $this->time);
+        if (!preg_match('/^(\d+)\s*(.*)$/u', $time, $matches)) {
+            return null;
+        }
+
+        $count = (int) $matches[1];
+        if ($count < 1) {
+            return null;
+        }
+
+        $unit = mb_strtolower(trim($matches[2]));
+        if ($unit === '' || str_starts_with($unit, 'мин') || str_starts_with($unit, 'min')) {
+            return $count;
+        }
+        if (str_starts_with($unit, 'ч') || str_starts_with($unit, 'час') || str_starts_with($unit, 'hour')) {
+            return $count * 60;
+        }
+
+        return null;
+    }
+
+    public function caloriesFor(int $timeCount, string $timeType): int
+    {
+        $baseMinutes = $this->durationMinutes();
+        if (!$baseMinutes || $timeCount < 1 || !in_array($timeType, ['minute', 'hour'], true)) {
+            throw new \InvalidArgumentException('Activity duration is not set');
+        }
+
+        $minutes = $timeType === 'hour' ? $timeCount * 60 : $timeCount;
+
+        return (int) round($this->calories * $minutes / $baseMinutes);
     }
 }

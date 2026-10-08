@@ -11,6 +11,6 @@ class UserRecepieIngridient extends Model
 
     protected $fillable = [
         'user_recepie_id',
-        'ingridient_id',
+        'ingredient_id',
     ];
 }

@@ -140,11 +140,12 @@ use Illuminate\Http\Request;
  *         @OA\MediaType(
  *             mediaType="application/json",
  *             @OA\Schema(
- *                 required={"name", "time_amount", "price", "start_time", "date", "category_id"},
+ *                 required={"name", "time_amount", "price", "calories", "start_time", "date", "category_id"},
  *                 @OA\Property(property="name", type="string", maxLength=255, example="Morning Yoga", description="Training name"),
  *                 @OA\Property(property="time_amount", type="integer", minimum=1, example=60, description="Duration in minutes"),
  *                 @OA\Property(property="description", type="string", example="Relaxing morning yoga session", description="Training description", nullable=true),
  *                 @OA\Property(property="price", type="number", format="float", minimum=0, example=30, description="Price in rubles"),
+ *                 @OA\Property(property="calories", type="integer", minimum=0, maximum=10000, example=180, description="Calories burned for the whole session"),
  *                 @OA\Property(property="start_time", type="string", format="time", example="09:00", description="Start time (H:i)"),
  *                 @OA\Property(property="date", type="string", format="date", example="2025-12-25", description="Date (Y-m-d)"),
  *                 @OA\Property(property="category_id", type="integer", example=1, description="Category ID")
@@ -213,11 +214,12 @@ use Illuminate\Http\Request;
  *         @OA\MediaType(
  *             mediaType="application/json",
  *             @OA\Schema(
- *                 required={"name", "time_amount", "price", "start_time", "date", "category_id"},
+ *                 required={"name", "time_amount", "price", "calories", "start_time", "date", "category_id"},
  *                 @OA\Property(property="name", type="string", maxLength=255, example="Evening Yoga"),
  *                 @OA\Property(property="time_amount", type="integer", minimum=1, example=45),
  *                 @OA\Property(property="description", type="string", nullable=true),
  *                 @OA\Property(property="price", type="number", format="float", minimum=0, example=30),
+ *                 @OA\Property(property="calories", type="integer", minimum=0, maximum=10000, example=180, description="Calories burned for the whole session"),
  *                 @OA\Property(property="start_time", type="string", format="time", example="18:00"),
  *                 @OA\Property(property="date", type="string", format="date", example="2025-12-26"),
  *                 @OA\Property(property="category_id", type="integer", example=2)

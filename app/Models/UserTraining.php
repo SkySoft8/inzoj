@@ -9,8 +9,13 @@ class UserTraining extends Model
 {
     use HasFactory;
 
+    public const STATUS_ACTIVE = 'active';
+
+    public const STATUS_CANCELLED = 'cancelled';
+
     protected $fillable = [
         'user_id',
         'training_id',
+        'status',
     ];
 }
