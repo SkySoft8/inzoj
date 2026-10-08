@@ -43,6 +43,19 @@ use App\Http\Controllers\Controller;
  * )
  *
  * @OA\Get(
+ *     path="/api/stats/week",
+ *     summary="Week screen for the statistics mock",
+ *     description="Returns the main tab and the nutrients tab for a period. Calories, proteins, fats and carbs are the average per day. Fiber, minerals and vitamins are listed with tracked=false because the diary does not store them. attention contains shortage cards below 80 percent of the daily goal, with text and products for the detail screen.",
+ *     operationId="statsWeek",
+ *     tags={"Stats"},
+ *     security={{"userSanctumToken": {}}},
+ *     @OA\Parameter(name="from", in="query", @OA\Schema(type="string", format="date", example="2026-08-18")),
+ *     @OA\Parameter(name="to", in="query", @OA\Schema(type="string", format="date", example="2026-08-24")),
+ *     @OA\Response(response=200, description="Week layout data"),
+ *     @OA\Response(response=422, description="Invalid period")
+ * )
+ *
+ * @OA\Get(
  *     path="/api/stats/series",
  *     summary="Chart series",
  *     description="Free metrics: weight, calories, burned_calories, proteins, fats, carbs, water, steps. Premium: neck, chest, waist, hips, biceps, glucose, blood_pressure_sys, blood_pressure_dia.",

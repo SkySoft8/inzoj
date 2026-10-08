@@ -19,8 +19,19 @@ class UserMeal extends Model
         'user_recepie_id',
         'dish_id',
         'meal_type',
-        'amount'
+        'amount',
+        'portion_quantity',
+        'portion_unit',
     ];
+
+    public function portionLabel(): string
+    {
+        $quantity = $this->portion_quantity ?? $this->amount;
+        $unit = $this->portion_unit ?? 'g';
+        $label = ['g' => 'г', 'pcs' => 'шт', 'ml' => 'мл'][$unit] ?? 'г';
+
+        return $quantity.' '.$label;
+    }
 
     public function nutritionSource(): ?array
     {

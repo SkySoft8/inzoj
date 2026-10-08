@@ -26,7 +26,7 @@ class ProductController extends Controller
             })
             ->orderBy('name')
             ->limit(30)
-            ->get(['id', 'name', 'calories', 'proteins', 'fats', 'carbs', 'serving_label', 'serving_grams']);
+            ->get(['id', 'name', 'calories', 'proteins', 'fats', 'carbs', 'serving_label', 'serving_grams', 'serving_unit']);
 
         return response()->json([
             'success' => true,
@@ -36,6 +36,22 @@ class ProductController extends Controller
 
     public function show (Request $request) {
         [$userId, $diaryNoteId, $productId, $mealType, $amount, $userMealId] = $this->getData($request);
+
+        $meal = null;
+        if ($userMealId) {
+            $meal = UserMeal::where('id', $userMealId)->where('user_id', $userId)->first();
+            if (!$meal) {
+                if ($request->expectsJson()) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'User meal not found',
+                    ], 404);
+                }
+                abort(404, 'User meal not found');
+            }
+            $productId = $meal->product_id;
+            $amount = $meal->amount;
+        }
 
         $product = Product::where('id', $productId)->first();
 
@@ -51,6 +67,9 @@ class ProductController extends Controller
                 'success' => true,
                 'product' => $product,
                 'amount' => $amount,
+                'portion_quantity' => $meal?->portion_quantity,
+                'portion_unit' => $meal?->portion_unit,
+                'portion_label' => $meal?->portionLabel(),
                 'diary_note_id' => $diaryNoteId,
                 'user_meal_id' => $userMealId
             ]);
@@ -63,14 +82,20 @@ class ProductController extends Controller
     }
 
     public function addMealProduct (Request $request) {
-        [$userId, $diaryNoteId, $productId, $mealType, $amount] = $this->getData($request);
+        [$userId, $diaryNoteId, $productId, $mealType] = $this->getData($request);
+        $portion = $this->portionFromRequest($request, $productId);
+        if ($portion instanceof \Illuminate\Http\JsonResponse) {
+            return $portion;
+        }
 
         $userMeal = UserMeal::create([
             'user_id' => $userId,
             'diary_note_id' => $diaryNoteId,
             'product_id' => $productId,
             'meal_type' => $mealType,
-            'amount' => $amount
+            'amount' => $portion['grams'],
+            'portion_quantity' => $portion['quantity'],
+            'portion_unit' => $portion['unit'],
         ]);
 
         app(DiaryBrowse::class)->rememberProduct($userId, (int) $productId);
@@ -82,9 +107,17 @@ class ProductController extends Controller
 
     public function updateMealProduct(Request $request) {
         $userMealId = $this->getData($request)[5];
-        $amount = $request->get('amount');
+        $meal = UserMeal::find($userMealId);
+        $portion = $this->portionFromRequest($request, $meal->product_id);
+        if ($portion instanceof \Illuminate\Http\JsonResponse) {
+            return $portion;
+        }
 
-        UserMeal::find($userMealId)->update(['amount' => $amount]);
+        $meal->update([
+            'amount' => $portion['grams'],
+            'portion_quantity' => $portion['quantity'],
+            'portion_unit' => $portion['unit'],
+        ]);
 
         [$userId, $diaryNoteId] = $this->getData($request);
 
@@ -121,16 +154,58 @@ class ProductController extends Controller
             'current_carbs' => $newData['carbs']
         ]);
 
-        if ($request->expectsJson()) {           
+        if ($request->expectsJson()) {
+            $saved = UserMeal::find($userMealId);
+
             return response()->json([
                 'success' => true,
                 'message' => $adding ? 'Product added to meal successfully' : 'Product amount updated successfully',
                 'user_meal_id' => $userMealId,
-                'diary_note_id' => $diaryNoteId
+                'diary_note_id' => $diaryNoteId,
+                'amount' => $saved->amount,
+                'portion_quantity' => $saved->portion_quantity,
+                'portion_unit' => $saved->portion_unit,
+                'portion_label' => $saved->portionLabel(),
             ]);
         }
 
         return redirect()->route('diary');
+    }
+
+    private function portionFromRequest(Request $request, $productId)
+    {
+        $unit = $request->get('unit', 'g');
+        $quantity = $request->get('quantity', $request->get('amount'));
+
+        if (!in_array($unit, ['g', 'pcs', 'ml'], true) || !is_numeric($quantity) || (int) $quantity < 1) {
+            return response()->json([
+                'success' => false,
+                'message' => 'quantity and unit are required',
+            ], 422);
+        }
+
+        $product = Product::find($productId);
+        if (!$product) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Product not found',
+            ], 404);
+        }
+
+        try {
+            $grams = $product->gramsForPortion((int) $quantity, $unit);
+        } catch (\InvalidArgumentException $exception) {
+            return response()->json([
+                'success' => false,
+                'message' => $exception->getMessage(),
+            ], 422);
+        }
+
+        return [
+            'quantity' => (int) $quantity,
+            'unit' => $unit,
+            'grams' => $grams,
+        ];
     }
 
     private function getData(Request $request) {

@@ -70,7 +70,7 @@ use Illuminate\Http\Request;
  *             @OA\Property(
  *                 property="user_activities",
  *                 type="object",
- *                 description="User activities data",
+ *                 description="Activity lines for the day. name is the label. A booked trainer session has training_id, empty catalog, and a name like Pilates (45 min). calories on activity is the stored number",
  *                 nullable=true
  *             )
  *         )
@@ -147,6 +147,34 @@ use Illuminate\Http\Request;
  *             @OA\Property(property="message", type="string", example="User meal not found")
  *         )
  *     )
+ * )
+ *
+ * @OA\Delete(
+ *     path="/api/diary/item",
+ *     summary="Remove a food line from a meal",
+ *     description="Deletes the breakfast, lunch, dinner, or snack line and recounts the day. The frequent-product counter is left as it is.",
+ *     operationId="deleteDiaryItem",
+ *     tags={"Diary"},
+ *     security={{"userSanctumToken": {}}},
+ *     @OA\Parameter(
+ *         name="user_meal_id",
+ *         in="query",
+ *         required=true,
+ *         @OA\Schema(type="integer", example=49)
+ *     ),
+ *     @OA\Response(
+ *         response=200,
+ *         description="Meal item removed",
+ *         @OA\JsonContent(
+ *             type="object",
+ *             @OA\Property(property="success", type="boolean", example=true),
+ *             @OA\Property(property="message", type="string", example="Meal item removed"),
+ *             @OA\Property(property="diary_note_id", type="integer", example=33),
+ *             @OA\Property(property="user_meal_id", type="integer", example=49)
+ *         )
+ *     ),
+ *     @OA\Response(response=404, description="User meal not found"),
+ *     @OA\Response(response=401, description="Unauthenticated")
  * )
  * 
  * 

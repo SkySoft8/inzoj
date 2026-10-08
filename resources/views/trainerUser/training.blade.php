@@ -19,6 +19,9 @@
         <label class="w-full">Стоимость тренировки (р)<br>
             <input type="number" name="price" class="w-full border border-indigo-600 rounded-md p-1" value="{{ $training->price ?? ' ' }}">
         </label>
+        <label class="w-full">Калории за тренировку<br>
+            <input type="number" name="calories" min="0" class="w-full border border-indigo-600 rounded-md p-1" value="{{ $training->calories ?? '' }}">
+        </label>
         <label class="w-full">Начало тренировки<br>
             <input type="time" name="start_time" class="w-full border border-indigo-600 rounded-md p-1" value="{{ isset($training) ? $training->start_time->format('H:i') : ' ' }}">
         </label>

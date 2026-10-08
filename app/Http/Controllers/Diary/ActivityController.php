@@ -4,7 +4,9 @@ namespace App\Http\Controllers\Diary;
 
 use App\Models\Activity;
 use App\Models\DiaryNote;
+use App\Models\UserActivityStat;
 use App\Models\UserFavoriteActivity;
+use Illuminate\Support\Collection;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
@@ -39,6 +41,39 @@ class ActivityController extends Controller
             return view('diary.steps', ['steps' => $note->current_steps]);
         }
 
+        if ($activityType == 'training' && $request->expectsJson()) {
+            $validated = $request->validate([
+                'q' => 'nullable|string|max:100',
+                'list' => 'nullable|in:frequent,recent,favorites',
+                'location_type' => 'nullable|in:'.implode(',', Activity::LOCATIONS),
+                'category' => 'nullable|string|max:50',
+            ]);
+
+            $list = $validated['list'] ?? 'frequent';
+            $activities = $this->trainingList(
+                $user,
+                $list,
+                trim((string) ($validated['q'] ?? '')),
+                $validated['location_type'] ?? null,
+                $validated['category'] ?? null
+            );
+
+            return response()->json([
+                'success' => true,
+                'activity_type' => 'training',
+                'list' => $list,
+                'activities' => $activities,
+                'location_types' => Activity::LOCATIONS,
+                'filters' => [
+                    'q' => $validated['q'] ?? null,
+                    'list' => $list,
+                    'location_type' => $validated['location_type'] ?? null,
+                    'category' => $validated['category'] ?? null,
+                ],
+                'diary_note_id' => $diaryNoteId,
+            ]);
+        }
+
         if ($activityType == 'training') {
             $validated = $request->validate([
                 'q' => 'nullable|string|max:100',
@@ -70,31 +105,6 @@ class ActivityController extends Controller
 
             $perPage = $validated['per_page'] ?? 20;
             $paginator = $query->paginate($perPage)->appends($request->query());
-
-            $activities = $paginator->getCollection()->map(function (Activity $activity) use ($user, $favoriteIds) {
-                return $activity->toApiArray($user, in_array($activity->id, $favoriteIds, true));
-            });
-
-            if ($request->expectsJson()) {
-                return response()->json([
-                    'success' => true,
-                    'activity_type' => 'training',
-                    'activities' => $activities->values(),
-                    'location_types' => Activity::LOCATIONS,
-                    'filters' => [
-                        'q' => $validated['q'] ?? null,
-                        'location_type' => $validated['location_type'] ?? null,
-                        'category' => $validated['category'] ?? null,
-                    ],
-                    'meta' => [
-                        'current_page' => $paginator->currentPage(),
-                        'last_page' => $paginator->lastPage(),
-                        'per_page' => $paginator->perPage(),
-                        'total' => $paginator->total(),
-                    ],
-                    'diary_note_id' => $diaryNoteId,
-                ]);
-            }
 
             $viewActivities = $paginator->getCollection();
             foreach ($viewActivities as $activity) {
@@ -191,5 +201,73 @@ class ActivityController extends Controller
         }
 
         return redirect()->route('diary');
+    }
+
+    private function trainingList($user, string $list, string $query, ?string $location, ?string $category): Collection
+    {
+        $favoriteIds = UserFavoriteActivity::where('user_id', $user->id)->pluck('activity_id');
+
+        $activities = match ($list) {
+            'favorites' => Activity::visibleTo($user)->whereIn('id', $favoriteIds)->orderBy('name')->limit(30)->get(),
+            'recent' => $this->recentActivities($user),
+            default => $this->frequentActivities($user),
+        };
+
+        if ($location && $location !== Activity::LOCATION_ANY) {
+            $activities = $activities->filter(
+                fn (Activity $activity) => in_array($activity->location_type, [$location, Activity::LOCATION_ANY], true)
+            )->values();
+        }
+        if ($category) {
+            $activities = $activities->filter(
+                fn (Activity $activity) => $activity->category === $category
+            )->values();
+        }
+        if ($query !== '') {
+            $needle = mb_strtolower($query);
+            $activities = $activities->filter(
+                fn (Activity $activity) => str_contains(mb_strtolower($activity->name), $needle)
+            )->values();
+        }
+
+        return $activities->map(
+            fn (Activity $activity) => $activity->toApiArray($user, $favoriteIds->contains($activity->id))
+        )->values();
+    }
+
+    private function frequentActivities($user): Collection
+    {
+        $ids = UserActivityStat::where('user_id', $user->id)
+            ->orderByDesc('times')
+            ->limit(30)
+            ->pluck('activity_id');
+
+        if ($ids->isEmpty()) {
+            return Activity::visibleTo($user)->orderBy('name')->limit(30)->get();
+        }
+
+        return Activity::visibleTo($user)
+            ->whereIn('id', $ids)
+            ->get()
+            ->sortBy(fn (Activity $activity) => $ids->search($activity->id))
+            ->values();
+    }
+
+    private function recentActivities($user): Collection
+    {
+        $ids = UserActivityStat::where('user_id', $user->id)
+            ->orderByDesc('last_added_at')
+            ->limit(30)
+            ->pluck('activity_id');
+
+        if ($ids->isEmpty()) {
+            return collect();
+        }
+
+        return Activity::visibleTo($user)
+            ->whereIn('id', $ids)
+            ->get()
+            ->sortBy(fn (Activity $activity) => $ids->search($activity->id))
+            ->values();
     }
 }

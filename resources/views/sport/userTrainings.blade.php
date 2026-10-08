@@ -26,11 +26,15 @@
             <p>{{ $training->start_time->format('H:i') }}</p>
             <p>{{ $training->price }}р</p>
         </div>
-        <form method="POST" action="{{ route('revoke') }}">
-            @csrf
-            <input type="hidden" name="training_id" value="{{ $training->id }}">
-            <button type="submit" class="w-full border border-black px-4 py-2 rounded">Отменить запись</button>
-        </form>
+        @if (($training->signup_status ?? 'active') === 'cancelled')
+            <p>Отменено</p>
+        @else
+            <form method="POST" action="{{ route('revoke') }}">
+                @csrf
+                <input type="hidden" name="training_id" value="{{ $training->id }}">
+                <button type="submit" class="w-full border border-black px-4 py-2 rounded">Отменить запись</button>
+            </form>
+        @endif
     </div>
     @endforeach
 

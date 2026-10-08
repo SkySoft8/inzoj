@@ -112,11 +112,16 @@ class TrainerTrainingController extends Controller
     }
 
     private function create(Request $request) {
+        $request->validate([
+            'calories' => 'required|integer|min:0|max:10000',
+        ]);
+
         $newTraining = $request->only([
             'name',
             'time_amount',
             'description',
             'price',
+            'calories',
             'start_time',
             'date',
             'category_id'
@@ -129,11 +134,16 @@ class TrainerTrainingController extends Controller
 
     private function update(Request $request) {
         $trainingId = $request->id;
+        $request->validate([
+            'calories' => 'required|integer|min:0|max:10000',
+        ]);
+
         $updateTraining = $request->only([
             'name',
             'time_amount',
             'description',
             'price',
+            'calories',
             'start_time',
             'date',
             'category_id'
@@ -162,11 +172,16 @@ class TrainerTrainingController extends Controller
             ], 404);
         }
 
+        $request->validate([
+            'calories' => 'required|integer|min:0|max:10000',
+        ]);
+
         $newTraining = $request->only([
             'name',
             'time_amount',
             'description',
             'price',
+            'calories',
             'start_time',
             'date',
             'category_id'
@@ -194,11 +209,16 @@ class TrainerTrainingController extends Controller
             ], 404);
         }
 
+        $request->validate([
+            'calories' => 'required|integer|min:0|max:10000',
+        ]);
+
         $updateTraining = $request->only([
             'name',
             'time_amount',
             'description',
             'price',
+            'calories',
             'start_time',
             'date',
             'category_id'

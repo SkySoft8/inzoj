@@ -23,6 +23,7 @@ class Training extends Model
         'time_amount',
         'description',
         'price',
+        'calories',
         'start_time',
         'date',
         'category_id'

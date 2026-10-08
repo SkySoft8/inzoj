@@ -83,7 +83,7 @@ use Illuminate\Http\Request;
  * @OA\Post(
  *     path="/api/diary/activity/training/add",
  *     summary="Add training to diary",
- *     description="Adds a training activity to the diary",
+ *     description="Adds a training. Calories are calculated from the catalog duration and the sent time_count.",
  *     operationId="addTraining",
  *     tags={"Diary - Trainings"},
  *     security={{"userSanctumToken": {}}},
@@ -101,11 +101,10 @@ use Illuminate\Http\Request;
  *         @OA\MediaType(
  *             mediaType="application/json",
  *             @OA\Schema(
- *                 required={"training_id", "time_count", "time_type", "calories"},
- *                 @OA\Property(property="training_id", type="integer", example=2, description="**REQUIRED**. Training activity ID"),
- *                 @OA\Property(property="time_count", type="integer", example=30, description="**REQUIRED**. Duration value"),
- *                 @OA\Property(property="time_type", type="string", enum={"minute", "hour"}, example="minute", description="**REQUIRED**. Time unit type"),
- *                 @OA\Property(property="calories", type="integer", example=200, description="**REQUIRED**. Calories burned")
+ *                 required={"training_id", "time_count", "time_type"},
+ *                 @OA\Property(property="training_id", type="integer", example=2),
+ *                 @OA\Property(property="time_count", type="integer", example=30),
+ *                 @OA\Property(property="time_type", type="string", enum={"minute", "hour"}, example="minute")
  *             )
  *         )
  *     ),
@@ -118,6 +117,9 @@ use Illuminate\Http\Request;
  *             @OA\Property(property="success", type="boolean", example=true),
  *             @OA\Property(property="message", type="string", example="Training added successfully"),
  *             @OA\Property(property="user_activity_id", type="integer", example=10),
+ *             @OA\Property(property="time_count", type="integer", example=30),
+ *             @OA\Property(property="time_type", type="string", example="minute"),
+ *             @OA\Property(property="calories", type="integer", example=240, description="Calculated from the catalog duration"),
  *             @OA\Property(property="burned_calories", type="integer", example=200),
  *             @OA\Property(property="diary_note_id", type="integer", example=33)
  *         )
@@ -147,7 +149,7 @@ use Illuminate\Http\Request;
  * @OA\Put(
  *     path="/api/diary/activity/training/update",
  *     summary="Update training in diary",
- *     description="Updates an existing training activity in the diary",
+ *     description="Updates duration. Calories are calculated again from the catalog duration.",
  *     operationId="updateTraining",
  *     tags={"Diary - Trainings"},
  *     security={{"userSanctumToken": {}}},
@@ -173,10 +175,9 @@ use Illuminate\Http\Request;
  *         @OA\MediaType(
  *             mediaType="application/json",
  *             @OA\Schema(
- *                 required={"time_count", "time_type", "calories"},
- *                 @OA\Property(property="time_count", type="integer", example=45, description="**REQUIRED**. Duration value"),
- *                 @OA\Property(property="time_type", type="string", enum={"minute", "hour"}, description="**REQUIRED**. Time unit type"),
- *                 @OA\Property(property="calories", type="integer", example=300, description="**REQUIRED**. Calories burned")
+ *                 required={"time_count", "time_type"},
+ *                 @OA\Property(property="time_count", type="integer", example=45),
+ *                 @OA\Property(property="time_type", type="string", enum={"minute", "hour"}, example="minute")
  *             )
  *         )
  *     ),

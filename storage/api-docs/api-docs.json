@@ -321,6 +321,21 @@
                         }
                     },
                     {
+                        "name": "list",
+                        "in": "query",
+                        "description": "frequent, recent, or favorites. Default frequent",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "default": "frequent",
+                            "enum": [
+                                "frequent",
+                                "recent",
+                                "favorites"
+                            ]
+                        }
+                    },
+                    {
                         "name": "q",
                         "in": "query",
                         "description": "Search by exercise name (training only)",
@@ -992,7 +1007,7 @@
                                             }
                                         },
                                         "user_activities": {
-                                            "description": "User activities data",
+                                            "description": "Activity lines for the day. name is the label. A booked trainer session has training_id, empty catalog, and a name like Pilates (45 min). calories on activity is the stored number",
                                             "type": "object",
                                             "nullable": true
                                         }
@@ -1130,6 +1145,66 @@
                                 }
                             }
                         }
+                    }
+                },
+                "security": [
+                    {
+                        "userSanctumToken": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Diary"
+                ],
+                "summary": "Remove a food line from a meal",
+                "description": "Deletes the breakfast, lunch, dinner, or snack line and recounts the day. The frequent-product counter is left as it is.",
+                "operationId": "deleteDiaryItem",
+                "parameters": [
+                    {
+                        "name": "user_meal_id",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 49
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Meal item removed",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Meal item removed"
+                                        },
+                                        "diary_note_id": {
+                                            "type": "integer",
+                                            "example": 33
+                                        },
+                                        "user_meal_id": {
+                                            "type": "integer",
+                                            "example": 49
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "User meal not found"
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
                     }
                 },
                 "security": [
@@ -3047,8 +3122,29 @@
                                             "$ref": "#/components/schemas/Product"
                                         },
                                         "amount": {
+                                            "description": "Grams used for nutrition",
                                             "type": "integer",
-                                            "example": 100
+                                            "example": 120
+                                        },
+                                        "portion_quantity": {
+                                            "type": "integer",
+                                            "example": 1,
+                                            "nullable": true
+                                        },
+                                        "portion_unit": {
+                                            "type": "string",
+                                            "enum": [
+                                                "g",
+                                                "pcs",
+                                                "ml"
+                                            ],
+                                            "example": "pcs",
+                                            "nullable": true
+                                        },
+                                        "portion_label": {
+                                            "type": "string",
+                                            "example": "1 шт",
+                                            "nullable": true
                                         },
                                         "diary_note_id": {
                                             "type": "integer",
@@ -3123,16 +3219,14 @@
                                 "required": [
                                     "product_id",
                                     "meal_type",
-                                    "amount"
+                                    "quantity"
                                 ],
                                 "properties": {
                                     "product_id": {
-                                        "description": "**REQUIRED**",
                                         "type": "integer",
                                         "example": 3
                                     },
                                     "meal_type": {
-                                        "description": "**REQUIRED**",
                                         "type": "string",
                                         "enum": [
                                             "breakfast",
@@ -3141,8 +3235,23 @@
                                             "snack"
                                         ]
                                     },
+                                    "quantity": {
+                                        "description": "How many units",
+                                        "type": "integer",
+                                        "example": 1
+                                    },
+                                    "unit": {
+                                        "description": "g is always allowed. pcs and ml only if the product has that measure",
+                                        "type": "string",
+                                        "enum": [
+                                            "g",
+                                            "pcs",
+                                            "ml"
+                                        ],
+                                        "example": "pcs"
+                                    },
                                     "amount": {
-                                        "description": "**REQUIRED**. Amount in grams",
+                                        "description": "Legacy grams. Used when quantity is omitted",
                                         "type": "integer",
                                         "example": 100
                                     }
@@ -3239,16 +3348,28 @@
                             "schema": {
                                 "required": [
                                     "user_meal_id",
-                                    "amount"
+                                    "quantity"
                                 ],
                                 "properties": {
                                     "user_meal_id": {
-                                        "description": "**REQUIRED**. User meal ID",
                                         "type": "integer",
                                         "example": 49
                                     },
+                                    "quantity": {
+                                        "type": "integer",
+                                        "example": 1
+                                    },
+                                    "unit": {
+                                        "type": "string",
+                                        "enum": [
+                                            "g",
+                                            "pcs",
+                                            "ml"
+                                        ],
+                                        "example": "g"
+                                    },
                                     "amount": {
-                                        "description": "**REQUIRED**. New amount in grams",
+                                        "description": "Legacy grams",
                                         "type": "integer",
                                         "example": 150
                                     }
@@ -5589,8 +5710,20 @@
                     "Sport"
                 ],
                 "summary": "Get user's trainings",
-                "description": "Returns list of trainings user signed up for",
+                "description": "Returns upcoming and past bookings. Each training includes status active or cancelled. Pass diary_note_id of the open diary day to get added_to_diary.",
                 "operationId": "getUserTrainings",
+                "parameters": [
+                    {
+                        "name": "diary_note_id",
+                        "in": "query",
+                        "description": "Open diary day. When set, each training includes added_to_diary",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "example": 5
+                        }
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "User trainings retrieved successfully",
@@ -5629,6 +5762,111 @@
                     },
                     "401": {
                         "description": "Unauthenticated"
+                    },
+                    "404": {
+                        "description": "Diary note not found"
+                    }
+                },
+                "security": [
+                    {
+                        "userSanctumToken": []
+                    }
+                ]
+            }
+        },
+        "/api/sport/add-to-diary": {
+            "post": {
+                "tags": [
+                    "Sport"
+                ],
+                "summary": "Add a booked training to the diary",
+                "description": "Copies an active booking onto the open diary day. Calories and duration come from the trainer session. The same booking can be added once per day. A cancelled booking cannot be added. Cancelling the booking does not remove a diary line that was already saved.",
+                "operationId": "addBookedTrainingToDiary",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "training_id",
+                                    "diary_note_id"
+                                ],
+                                "properties": {
+                                    "training_id": {
+                                        "type": "integer",
+                                        "example": 5
+                                    },
+                                    "diary_note_id": {
+                                        "description": "Open diary day",
+                                        "type": "integer",
+                                        "example": 5
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Training added to diary",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Training added to diary"
+                                        },
+                                        "user_activity_id": {
+                                            "type": "integer",
+                                            "example": 12
+                                        },
+                                        "name": {
+                                            "type": "string",
+                                            "example": "Pilates (45 min)"
+                                        },
+                                        "calories": {
+                                            "type": "integer",
+                                            "example": 180
+                                        },
+                                        "burned_calories": {
+                                            "type": "number",
+                                            "format": "float",
+                                            "example": 180
+                                        },
+                                        "diary_note_id": {
+                                            "type": "integer",
+                                            "example": 5
+                                        },
+                                        "training_id": {
+                                            "type": "integer",
+                                            "example": 5
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Premium subscription required"
+                    },
+                    "404": {
+                        "description": "Signup, training, or diary note not found"
+                    },
+                    "409": {
+                        "description": "Already added to this day, or the booking is cancelled"
+                    },
+                    "422": {
+                        "description": "Calories are not set, or required fields are missing"
                     }
                 },
                 "security": [
@@ -5644,7 +5882,7 @@
                     "Sport"
                 ],
                 "summary": "Cancel training signup",
-                "description": "Removes user from training",
+                "description": "Marks the booking as cancelled and keeps it in the list. Does not remove a diary line already added for this booking.",
                 "operationId": "revokeTraining",
                 "requestBody": {
                     "required": true,
@@ -5683,6 +5921,10 @@
                                         "training_id": {
                                             "type": "integer",
                                             "example": 1
+                                        },
+                                        "status": {
+                                            "type": "string",
+                                            "example": "cancelled"
                                         }
                                     },
                                     "type": "object"
@@ -5709,6 +5951,9 @@
                                 }
                             }
                         }
+                    },
+                    "409": {
+                        "description": "Booking is already cancelled"
                     },
                     "422": {
                         "description": "Validation error",
@@ -5963,6 +6208,49 @@
                 "responses": {
                     "200": {
                         "description": "Start vs current weight, today calories; photos if premium"
+                    }
+                },
+                "security": [
+                    {
+                        "userSanctumToken": []
+                    }
+                ]
+            }
+        },
+        "/api/stats/week": {
+            "get": {
+                "tags": [
+                    "Stats"
+                ],
+                "summary": "Week screen for the statistics mock",
+                "description": "Returns the main tab and the nutrients tab for a period. Calories, proteins, fats and carbs are the average per day. Fiber, minerals and vitamins are listed with tracked=false because the diary does not store them. attention contains shortage cards below 80 percent of the daily goal, with text and products for the detail screen.",
+                "operationId": "statsWeek",
+                "parameters": [
+                    {
+                        "name": "from",
+                        "in": "query",
+                        "schema": {
+                            "type": "string",
+                            "format": "date",
+                            "example": "2026-08-18"
+                        }
+                    },
+                    {
+                        "name": "to",
+                        "in": "query",
+                        "schema": {
+                            "type": "string",
+                            "format": "date",
+                            "example": "2026-08-24"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Week layout data"
+                    },
+                    "422": {
+                        "description": "Invalid period"
                     }
                 },
                 "security": [
@@ -7635,6 +7923,7 @@
                                     "name",
                                     "time_amount",
                                     "price",
+                                    "calories",
                                     "start_time",
                                     "date",
                                     "category_id"
@@ -7664,6 +7953,13 @@
                                         "format": "float",
                                         "minimum": 0,
                                         "example": 30
+                                    },
+                                    "calories": {
+                                        "description": "Calories burned for the whole session",
+                                        "type": "integer",
+                                        "maximum": 10000,
+                                        "minimum": 0,
+                                        "example": 180
                                     },
                                     "start_time": {
                                         "description": "Start time (H:i)",
@@ -7783,6 +8079,7 @@
                                     "name",
                                     "time_amount",
                                     "price",
+                                    "calories",
                                     "start_time",
                                     "date",
                                     "category_id"
@@ -7807,6 +8104,13 @@
                                         "format": "float",
                                         "minimum": 0,
                                         "example": 30
+                                    },
+                                    "calories": {
+                                        "description": "Calories burned for the whole session",
+                                        "type": "integer",
+                                        "maximum": 10000,
+                                        "minimum": 0,
+                                        "example": 180
                                     },
                                     "start_time": {
                                         "type": "string",
@@ -8065,7 +8369,7 @@
                     "Diary - Trainings"
                 ],
                 "summary": "Add training to diary",
-                "description": "Adds a training activity to the diary",
+                "description": "Adds a training. Calories are calculated from the catalog duration and the sent time_count.",
                 "operationId": "addTraining",
                 "parameters": [
                     {
@@ -8087,33 +8391,24 @@
                                 "required": [
                                     "training_id",
                                     "time_count",
-                                    "time_type",
-                                    "calories"
+                                    "time_type"
                                 ],
                                 "properties": {
                                     "training_id": {
-                                        "description": "**REQUIRED**. Training activity ID",
                                         "type": "integer",
                                         "example": 2
                                     },
                                     "time_count": {
-                                        "description": "**REQUIRED**. Duration value",
                                         "type": "integer",
                                         "example": 30
                                     },
                                     "time_type": {
-                                        "description": "**REQUIRED**. Time unit type",
                                         "type": "string",
                                         "enum": [
                                             "minute",
                                             "hour"
                                         ],
                                         "example": "minute"
-                                    },
-                                    "calories": {
-                                        "description": "**REQUIRED**. Calories burned",
-                                        "type": "integer",
-                                        "example": 200
                                     }
                                 },
                                 "type": "object"
@@ -8139,6 +8434,19 @@
                                         "user_activity_id": {
                                             "type": "integer",
                                             "example": 10
+                                        },
+                                        "time_count": {
+                                            "type": "integer",
+                                            "example": 30
+                                        },
+                                        "time_type": {
+                                            "type": "string",
+                                            "example": "minute"
+                                        },
+                                        "calories": {
+                                            "description": "Calculated from the catalog duration",
+                                            "type": "integer",
+                                            "example": 240
                                         },
                                         "burned_calories": {
                                             "type": "integer",
@@ -8211,7 +8519,7 @@
                     "Diary - Trainings"
                 ],
                 "summary": "Update training in diary",
-                "description": "Updates an existing training activity in the diary",
+                "description": "Updates duration. Calories are calculated again from the catalog duration.",
                 "operationId": "updateTraining",
                 "parameters": [
                     {
@@ -8242,27 +8550,20 @@
                             "schema": {
                                 "required": [
                                     "time_count",
-                                    "time_type",
-                                    "calories"
+                                    "time_type"
                                 ],
                                 "properties": {
                                     "time_count": {
-                                        "description": "**REQUIRED**. Duration value",
                                         "type": "integer",
                                         "example": 45
                                     },
                                     "time_type": {
-                                        "description": "**REQUIRED**. Time unit type",
                                         "type": "string",
                                         "enum": [
                                             "minute",
                                             "hour"
-                                        ]
-                                    },
-                                    "calories": {
-                                        "description": "**REQUIRED**. Calories burned",
-                                        "type": "integer",
-                                        "example": 300
+                                        ],
+                                        "example": "minute"
                                     }
                                 },
                                 "type": "object"
@@ -9267,6 +9568,12 @@
                         "format": "float",
                         "example": 500
                     },
+                    "calories": {
+                        "description": "Calories for the whole session. Copied into the diary when the user adds the booking",
+                        "type": "integer",
+                        "example": 180,
+                        "nullable": true
+                    },
                     "start_time": {
                         "description": "Start time of the training",
                         "type": "string",
@@ -9575,9 +9882,18 @@
                         "nullable": true
                     },
                     "serving_grams": {
-                        "description": "Grams in serving_label. Calories stay per 100g.",
+                        "description": "Grams in one pcs or one ml. Calories stay per 100g.",
                         "type": "integer",
-                        "example": 200,
+                        "example": 120,
+                        "nullable": true
+                    },
+                    "serving_unit": {
+                        "description": "Household unit. Empty means grams only.",
+                        "type": "string",
+                        "enum": [
+                            "pcs",
+                            "ml"
+                        ],
                         "nullable": true
                     },
                     "is_favorite": {
@@ -9834,6 +10150,12 @@
                     "time": {
                         "type": "string",
                         "example": "10 мин"
+                    },
+                    "duration_minutes": {
+                        "description": "Catalog duration in minutes. calories are for this duration",
+                        "type": "integer",
+                        "example": 10,
+                        "nullable": true
                     },
                     "calories": {
                         "type": "integer",

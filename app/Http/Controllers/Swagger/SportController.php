@@ -161,10 +161,18 @@ use Illuminate\Http\Request;
  * @OA\Get(
  *     path="/api/sport/user-trainings",
  *     summary="Get user's trainings",
- *     description="Returns list of trainings user signed up for",
+ *     description="Returns upcoming and past bookings. Each training includes status active or cancelled. Pass diary_note_id of the open diary day to get added_to_diary.",
  *     operationId="getUserTrainings",
  *     tags={"Sport"},
  *     security={{"userSanctumToken": {}}},
+ *     
+ *     @OA\Parameter(
+ *         name="diary_note_id",
+ *         in="query",
+ *         required=false,
+ *         description="Open diary day. When set, each training includes added_to_diary",
+ *         @OA\Schema(type="integer", example=5)
+ *     ),
  *     
  *     @OA\Response(
  *         response=200,
@@ -183,13 +191,57 @@ use Illuminate\Http\Request;
  *         )
  *     ),
  *     
- *     @OA\Response(response=401, description="Unauthenticated")
+ *     @OA\Response(response=401, description="Unauthenticated"),
+ *     @OA\Response(response=404, description="Diary note not found")
+ * )
+ * 
+ * @OA\Post(
+ *     path="/api/sport/add-to-diary",
+ *     summary="Add a booked training to the diary",
+ *     description="Copies an active booking onto the open diary day. Calories and duration come from the trainer session. The same booking can be added once per day. A cancelled booking cannot be added. Cancelling the booking does not remove a diary line that was already saved.",
+ *     operationId="addBookedTrainingToDiary",
+ *     tags={"Sport"},
+ *     security={{"userSanctumToken": {}}},
+ *     
+ *     @OA\RequestBody(
+ *         required=true,
+ *         @OA\MediaType(
+ *             mediaType="application/json",
+ *             @OA\Schema(
+ *                 required={"training_id", "diary_note_id"},
+ *                 @OA\Property(property="training_id", type="integer", example=5),
+ *                 @OA\Property(property="diary_note_id", type="integer", example=5, description="Open diary day")
+ *             )
+ *         )
+ *     ),
+ *     
+ *     @OA\Response(
+ *         response=200,
+ *         description="Training added to diary",
+ *         @OA\JsonContent(
+ *             type="object",
+ *             @OA\Property(property="success", type="boolean", example=true),
+ *             @OA\Property(property="message", type="string", example="Training added to diary"),
+ *             @OA\Property(property="user_activity_id", type="integer", example=12),
+ *             @OA\Property(property="name", type="string", example="Pilates (45 min)"),
+ *             @OA\Property(property="calories", type="integer", example=180),
+ *             @OA\Property(property="burned_calories", type="number", format="float", example=180),
+ *             @OA\Property(property="diary_note_id", type="integer", example=5),
+ *             @OA\Property(property="training_id", type="integer", example=5)
+ *         )
+ *     ),
+ *     
+ *     @OA\Response(response=401, description="Unauthenticated"),
+ *     @OA\Response(response=403, description="Premium subscription required"),
+ *     @OA\Response(response=404, description="Signup, training, or diary note not found"),
+ *     @OA\Response(response=409, description="Already added to this day, or the booking is cancelled"),
+ *     @OA\Response(response=422, description="Calories are not set, or required fields are missing")
  * )
  * 
  * @OA\Delete(
  *     path="/api/sport/revoke",
  *     summary="Cancel training signup",
- *     description="Removes user from training",
+ *     description="Marks the booking as cancelled and keeps it in the list. Does not remove a diary line already added for this booking.",
  *     operationId="revokeTraining",
  *     tags={"Sport"},
  *     security={{"userSanctumToken": {}}},
@@ -212,7 +264,8 @@ use Illuminate\Http\Request;
  *             type="object",
  *             @OA\Property(property="success", type="boolean", example=true),
  *             @OA\Property(property="message", type="string", example="Successfully unsubscribed from training"),
- *             @OA\Property(property="training_id", type="integer", example=1)
+ *             @OA\Property(property="training_id", type="integer", example=1),
+ *             @OA\Property(property="status", type="string", example="cancelled")
  *         )
  *     ),
  *     
@@ -223,6 +276,11 @@ use Illuminate\Http\Request;
  *             @OA\Property(property="success", type="boolean", example=false),
  *             @OA\Property(property="message", type="string", example="Training signup not found")
  *         )
+ *     ),
+ *     
+ *     @OA\Response(
+ *         response=409,
+ *         description="Booking is already cancelled"
  *     ),
  *     
  *     @OA\Response(

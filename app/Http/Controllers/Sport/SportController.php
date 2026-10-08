@@ -6,10 +6,13 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
+use App\Models\DiaryNote;
 use App\Models\Training; 
 use App\Models\TrainingCategory; 
 use App\Models\TrainerUser;
+use App\Models\UserActivity;
 use App\Models\UserTraining;
+use Illuminate\Database\QueryException;
 
 class SportController extends Controller
 {
@@ -40,7 +43,9 @@ class SportController extends Controller
         }        
 
         $query = Training::whereBetween('date', [$fromDate, $toDate])
-            ->whereDoesntHave('userTraining')
+            ->whereDoesntHave('userTraining', function ($signup) {
+                $signup->where('status', UserTraining::STATUS_ACTIVE);
+            })
             ->whereHas('trainerUser', function ($trainerQuery) {
                 $trainerQuery->approved();
             })
@@ -88,7 +93,7 @@ class SportController extends Controller
             ->where('training_id', $trainingId)
             ->first();
             
-        if ($existing) {
+        if ($existing && $existing->status !== UserTraining::STATUS_CANCELLED) {
             if ($request->expectsJson()) {
                 return response()->json([
                     'success' => false,
@@ -109,10 +114,15 @@ class SportController extends Controller
             return redirect()->back()->with('error', 'Тренировка недоступна');
         }
 
-        UserTraining::create([
-            'user_id' => $userId,
-            'training_id' => $trainingId,
-        ]);
+        if ($existing) {
+            $existing->update(['status' => UserTraining::STATUS_ACTIVE]);
+        } else {
+            UserTraining::create([
+                'user_id' => $userId,
+                'training_id' => $trainingId,
+                'status' => UserTraining::STATUS_ACTIVE,
+            ]);
+        }
 
         if ($request->expectsJson()) {
             return response()->json([
@@ -146,15 +156,38 @@ class SportController extends Controller
             $trainers[$id] = $trainerName;
         }
 
+        $statuses = $this->signupStatuses($userId);
+        $diaryNoteId = $request->get('diary_note_id');
+        $addedIds = [];
+        if ($request->expectsJson() && $diaryNoteId) {
+            $ownsNote = DiaryNote::where('id', $diaryNoteId)->where('user_id', $userId)->exists();
+            if (!$ownsNote) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Diary note not found',
+                ], 404);
+            }
+            $addedIds = UserActivity::where('user_id', $userId)
+                ->where('diary_note_id', $diaryNoteId)
+                ->whereNotNull('training_id')
+                ->pluck('training_id')
+                ->map(fn ($id) => (int) $id)
+                ->all();
+        }
+
         if ($request->expectsJson()) {
             return response()->json([
                 'success' => true,
-                'user_trainings' => $userTrainings->values(),
-                'old_trainings' => $oldTrainings->values(),
+                'user_trainings' => $this->trainingsForApi($userTrainings, $diaryNoteId, $addedIds, $statuses),
+                'old_trainings' => $this->trainingsForApi($oldTrainings, $diaryNoteId, $addedIds, $statuses),
                 'categories' => $trainingCategories,
                 'trainers' => $trainers
             ]);
         }        
+
+        $allUserTrainings->each(function ($training) use ($statuses) {
+            $training->signup_status = $statuses[(int) $training->id] ?? UserTraining::STATUS_ACTIVE;
+        });
 
         return view('sport.userTrainings', [
             'userTrainings' => $userTrainings,
@@ -168,11 +201,11 @@ class SportController extends Controller
         $userId = Auth::user()->id;
         $trainingId = $request->training_id;
 
-        $deleted = UserTraining::where('user_id', $userId)
+        $signup = UserTraining::where('user_id', $userId)
             ->where('training_id', $trainingId)
-            ->delete();
+            ->first();
 
-        if ($deleted == 0) {
+        if (!$signup) {
             if ($request->expectsJson()) {
                 return response()->json([
                     'success' => false,
@@ -182,15 +215,157 @@ class SportController extends Controller
             return redirect()->back()->with('error', 'Запись на тренировку не найдена');
         }
 
+        if ($signup->status === UserTraining::STATUS_CANCELLED) {
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Training signup already cancelled',
+                    'status' => UserTraining::STATUS_CANCELLED,
+                    'training_id' => (int) $trainingId,
+                ], 409);
+            }
+            return redirect()->back()->with('error', 'Запись уже отменена');
+        }
+
+        $signup->update(['status' => UserTraining::STATUS_CANCELLED]);
+
         if ($request->expectsJson()) {
             return response()->json([
                 'success' => true,
                 'message' => 'Successfully unsubscribed from training',
-                'training_id' => $trainingId
+                'training_id' => (int) $trainingId,
+                'status' => UserTraining::STATUS_CANCELLED,
             ]);
         }
 
         return redirect()->route('userTrainings');
+    }
+
+    public function addToDiary(Request $request)
+    {
+        $userId = Auth::user()->id;
+        $trainingId = $request->get('training_id');
+        $diaryNoteId = $request->get('diary_note_id');
+
+        if (!$trainingId || !$diaryNoteId) {
+            return response()->json([
+                'success' => false,
+                'message' => 'training_id and diary_note_id are required',
+            ], 422);
+        }
+
+        $note = DiaryNote::where('id', $diaryNoteId)->where('user_id', $userId)->first();
+        if (!$note) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Diary note not found',
+            ], 404);
+        }
+
+        $signedUp = UserTraining::where('user_id', $userId)
+            ->where('training_id', $trainingId)
+            ->first();
+        if (!$signedUp || $signedUp->status !== UserTraining::STATUS_ACTIVE) {
+            return response()->json([
+                'success' => false,
+                'message' => $signedUp ? 'Training signup is cancelled' : 'Training signup not found',
+            ], $signedUp ? 409 : 404);
+        }
+
+        $training = Training::find($trainingId);
+        if (!$training) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Training not found',
+            ], 404);
+        }
+
+        if ($training->calories === null) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Training calories are not set',
+            ], 422);
+        }
+
+        $minutes = (int) $training->time_amount;
+        if ($minutes < 1) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Training duration is not set',
+            ], 422);
+        }
+
+        $already = UserActivity::where('user_id', $userId)
+            ->where('diary_note_id', $note->id)
+            ->where('training_id', $training->id)
+            ->exists();
+        if ($already) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Training already added to this day',
+            ], 409);
+        }
+
+        try {
+            $userActivity = UserActivity::create([
+                'user_id' => $userId,
+                'diary_note_id' => $note->id,
+                'activity_id' => null,
+                'training_id' => $training->id,
+                'time_count' => $minutes,
+                'time_type' => 'minute',
+                'calories' => (int) $training->calories,
+            ]);
+        } catch (QueryException $exception) {
+            if ((int) ($exception->errorInfo[1] ?? 0) === 1062) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Training already added to this day',
+                ], 409);
+            }
+            throw $exception;
+        }
+
+        $userActivity->load('training');
+        $burned = $note->recountBurnedCalories();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Training added to diary',
+            'user_activity_id' => $userActivity->id,
+            'name' => $userActivity->diaryName(),
+            'calories' => (int) $userActivity->calories,
+            'burned_calories' => $burned,
+            'diary_note_id' => $note->id,
+            'training_id' => $training->id,
+        ]);
+    }
+
+    private function signupStatuses(int $userId): array
+    {
+        $statuses = [];
+        $signups = UserTraining::where('user_id', $userId)->get();
+        foreach ($signups as $signup) {
+            $id = (int) $signup->training_id;
+            if (!isset($statuses[$id]) || $signup->status === UserTraining::STATUS_ACTIVE) {
+                $statuses[$id] = $signup->status ?: UserTraining::STATUS_ACTIVE;
+            }
+        }
+
+        return $statuses;
+    }
+
+    private function trainingsForApi($trainings, $diaryNoteId, array $addedIds, array $statuses)
+    {
+        return $trainings->values()->map(function ($training) use ($diaryNoteId, $addedIds, $statuses) {
+            $row = $training->toArray();
+            $row['status'] = $statuses[(int) $training->id] ?? UserTraining::STATUS_ACTIVE;
+            if ($diaryNoteId) {
+                $row['added_to_diary'] = in_array((int) $training->id, $addedIds, true);
+            }
+
+            return $row;
+        });
     }
 
     public function trainer(Request $request) {
