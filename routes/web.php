@@ -9,6 +9,7 @@ use App\Http\Controllers\PremiumController;
 use App\Http\Controllers\Profile\UserDataController;
 use App\Http\Controllers\Profile\TargetsController;
 use App\Http\Controllers\Profile\RationController;
+use App\Http\Controllers\Profile\ProfilePhotoController;
 
 use App\Http\Controllers\Diary\DiaryNoteController;
 use App\Http\Controllers\Diary\MealController;
@@ -82,6 +83,10 @@ Route::middleware('auth:web')->group(function () {
     Route::post('/profile/targets/update', [TargetsController::class, 'update'])->name('targets.update');
     Route::get('/profile/ration', [RationController::class, 'show'])->name('ration');
     Route::post('/profile/ration/update', [RationController::class, 'update'])->name('ration.update');
+
+    Route::post('/profile/photo', [ProfilePhotoController::class, 'store'])->name('profile.photo.update');
+    Route::post('/profile/photo/delete', [ProfilePhotoController::class, 'destroy'])->name('profile.photo.delete');
+    Route::get('/profile/photo/file', [ProfilePhotoController::class, 'show'])->name('profile.photo.file');
 
     Route::get('/diary', [DiaryNoteController::class, 'show'])->name('diary');
     Route::get('/diary/item', [DiaryNoteController::class, 'redirection'])->name('diary.item');

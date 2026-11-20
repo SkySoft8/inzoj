@@ -69,6 +69,7 @@ use Illuminate\Http\Request;
  * 
  *     @OA\Property(property="id", type="integer", format="int64", example=1, description="User ID"),
  *     @OA\Property(property="name", type="string", example="Дима", description="Full name", nullable=true),
+ *     @OA\Property(property="profile_photo_url", type="string", example="/api/profile/photo/file", description="Authenticated endpoint returning the user's profile photo", nullable=true),
  *     @OA\Property(property="email", type="string", format="email", example="example@gmail.com", description="Email address"),
  *     @OA\Property(property="goal", type="string", enum={"lose_weight", "gain_muscle", "maintain", "other"}, nullable=true, description="Fitness goal"),
  *     @OA\Property(property="current_weight", type="number", format="float", example=75, nullable=true, description="Current weight in kg"),
@@ -76,7 +77,7 @@ use Illuminate\Http\Request;
  *     @OA\Property(property="height", type="integer", example=175, nullable=true, description="Height in cm"),
  *     @OA\Property(property="age", type="integer", example=30, nullable=true, description="Age in years"),
  *     @OA\Property(property="gender", type="string", enum={"male", "female"}, nullable=true, description="Gender"),
- *     @OA\Property(property="activity_level", type="string", enum={"low", "medium", "high", "expert"}, nullable=true, description="Physical activity level"),
+ *     @OA\Property(property="activity_level", type="string", enum={"low", "base", "medium", "high", "expert"}, nullable=true, description="Physical activity level"),
  *     @OA\Property(property="calories", type="integer", example=2000, nullable=true, description="Daily calorie goal"),
  *     @OA\Property(property="proteins", type="number", format="float", example=135.0, nullable=true, description="Daily protein goal in grams"),
  *     @OA\Property(property="fats", type="number", format="float", example=60.0, nullable=true, description="Daily fat goal in grams"),

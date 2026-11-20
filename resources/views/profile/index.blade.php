@@ -4,6 +4,42 @@
 <div class="gap-4 w-96 flex flex-col justify-between">
     <h2 class="text-center text-3xl font-extrabold">Профиль</h2>
 
+    @if (session('success'))
+        <div class="rounded bg-green-50 text-green-700 px-4 py-2 text-sm">
+            {{ session('success') }}
+        </div>
+    @endif
+
+    <div class="bg-white rounded-lg p-4 flex flex-col items-center gap-2">
+        @if (Auth::user()->profile_photo_url)
+            <img src="{{ Auth::user()->profile_photo_url }}" alt="Фото профиля"
+                 class="w-24 h-24 rounded-full object-cover">
+        @else
+            <div class="w-24 h-24 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 text-sm">
+                Нет фото
+            </div>
+        @endif
+
+        <form method="POST" action="{{ route('profile.photo.update') }}" enctype="multipart/form-data"
+              class="flex flex-col items-center gap-2">
+            @csrf
+            <label class="rounded py-2 px-4 font-medium bg-white border cursor-pointer">
+                {{ Auth::user()->profile_photo_url ? 'Изменить фото' : 'Добавить фото' }}
+                <input type="file" name="photo" accept="image/*" class="hidden" onchange="this.form.submit()">
+            </label>
+            @error('photo')
+                <div class="text-red-600 text-sm">{{ $message }}</div>
+            @enderror
+        </form>
+
+        @if (Auth::user()->profile_photo_url)
+            <form method="POST" action="{{ route('profile.photo.delete') }}">
+                @csrf
+                <button type="submit" class="text-red-600 text-sm">Удалить фото</button>
+            </form>
+        @endif
+    </div>
+
     <div class="bg-white rounded-lg p-4 gap-2 flex flex-col">
         @if(!Auth::user()->is_premium)
             <a href="{{ route('premium') }}" class="rounded flex justify-start py-1 px-3 font-medium bg-white border">

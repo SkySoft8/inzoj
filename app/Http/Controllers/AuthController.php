@@ -60,6 +60,7 @@ class AuthController extends Controller
                 'user' => [
                     'id' => $user->id,
                     'email' => $user->email,
+                    'profile_photo_url' => $user->profile_photo_url,
                 ]
             ]);
         }
@@ -105,6 +106,7 @@ class AuthController extends Controller
                         'id' => $user->id,
                         'email' => $user->email,
                         'name' => $user->name,
+                        'profile_photo_url' => $user->profile_photo_url,
                     ]
                 ]);
             }            

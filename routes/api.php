@@ -12,6 +12,7 @@ use App\Http\Controllers\Profile\UserDataController;
 use App\Http\Controllers\Profile\TargetsController;
 use App\Http\Controllers\Profile\RationController;
 use App\Http\Controllers\Profile\NutritionController;
+use App\Http\Controllers\Profile\ProfilePhotoController;
 
 use App\Http\Controllers\Diary\DiaryNoteController;
 use App\Http\Controllers\Diary\MealController;
@@ -92,6 +93,10 @@ Route::middleware('auth:sanctum')->group(function () {
 
         Route::get('/nutrition', [NutritionController::class, 'show']);
         Route::post('/nutrition/recalculate', [NutritionController::class, 'recalculate']);
+
+        Route::post('/photo', [ProfilePhotoController::class, 'store']);
+        Route::delete('/photo', [ProfilePhotoController::class, 'destroy']);
+        Route::get('/photo/file', [ProfilePhotoController::class, 'show']);
     });
     
     // Дневник

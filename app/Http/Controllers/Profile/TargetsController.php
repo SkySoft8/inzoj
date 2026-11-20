@@ -99,7 +99,7 @@ class TargetsController extends Controller
         }
 
         $rules = [];
-        
+
         switch ($field) {
             case 'goal':
                 $rules['value'] = 'required|in:lose_weight,gain_muscle,maintain,other';
@@ -109,7 +109,7 @@ class TargetsController extends Controller
                 $rules['value'] = 'required|numeric|min:30|max:300';
                 break;
             case 'activity_level':
-                $rules['value'] = 'required|in:low,medium,high,expert';
+                $rules['value'] = 'required|in:low,base,medium,high,expert';
                 break;
             case 'calories':
                 $rules['value'] = 'required|integer|min:1000|max:5000';

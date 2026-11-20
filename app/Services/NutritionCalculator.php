@@ -9,6 +9,7 @@ class NutritionCalculator
 {
     public const ACTIVITY = [
         'low' => 1.2,
+        'base' => 1.375,
         'medium' => 1.55,
         'high' => 1.725,
         'expert' => 1.9,
@@ -16,6 +17,7 @@ class NutritionCalculator
 
     public const STEPS = [
         'low' => 6000,
+        'base' => 7000,
         'medium' => 8000,
         'high' => 10000,
         'expert' => 12000,

@@ -130,6 +130,9 @@ class UserDataController extends Controller
     {
         return [
             'bmr' => $plan['calculator']['free']['bmr'] ?? null,
+            'tdee' => (($plan['calculator']['used'] ?? null) === 'extended'
+                ? ($plan['calculator']['extended']['tdee'] ?? null)
+                : ($plan['calculator']['free']['tdee'] ?? null)),
             'imt' => $plan['bmi']['value'] ?? null,
             'imt_classification' => $plan['bmi']['classification'] ?? null,
             'calories_norm' => $plan['limits']['daily']['calories'] ?? null,

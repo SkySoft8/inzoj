@@ -93,10 +93,11 @@
             <h3 class="font-medium">Уровень активности</h3>
             <select name="activity_level" required class="w-full rounded px-3 py-2">
                 <option value="">Выберите уровень активности</option>
-                <option value="low" {{ (old('activity_level', $data['activity_level'] ?? '') == 'low') ? 'selected' : '' }}>Низкий (сидячий образ жизни)</option>
-                <option value="medium" {{ (old('activity_level', $data['activity_level'] ?? '') == 'medium') ? 'selected' : '' }}>Средний (легкие тренировки 1-3 раза в неделю)</option>
-                <option value="high" {{ (old('activity_level', $data['activity_level'] ?? '') == 'high') ? 'selected' : '' }}>Высокий (интенсивные тренировки 3-5 раз в неделю)</option>
-                <option value="expert" {{ (old('activity_level', $data['activity_level'] ?? '') == 'expert') ? 'selected' : '' }}>Эксперт (ежедневные интенсивные тренировки)</option>
+                <option value="low" {{ (old('activity_level', $data['activity_level'] ?? '') == 'low') ? 'selected' : '' }}>Очень низкая (сидячий образ жизни)</option>
+                <option value="base" {{ (old('activity_level', $data['activity_level'] ?? '') == 'base') ? 'selected' : '' }}>Низкая (лёгкие нагрузки 1–3 дня в неделю)</option>
+                <option value="medium" {{ (old('activity_level', $data['activity_level'] ?? '') == 'medium') ? 'selected' : '' }}>Средняя (умеренные нагрузки 3–5 дней в неделю)</option>
+                <option value="high" {{ (old('activity_level', $data['activity_level'] ?? '') == 'high') ? 'selected' : '' }}>Высокая (интенсивные нагрузки 6–7 дней в неделю)</option>
+                <option value="expert" {{ (old('activity_level', $data['activity_level'] ?? '') == 'expert') ? 'selected' : '' }}>Очень высокая (ежедневные интенсивные тренировки)</option>
             </select>
         </div>
         @endif
