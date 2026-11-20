@@ -186,7 +186,7 @@ use Illuminate\Http\Request;
      *                         @OA\Schema(
      *                             type="string",
      *                             description="For activity level",
-     *                             enum={"low", "medium", "high", "expert"},
+     *                             enum={"low", "base", "medium", "high", "expert"},
      *                             example="medium"
      *                         ),
  *                         @OA\Schema(

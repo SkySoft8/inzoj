@@ -31,12 +31,18 @@ class User extends Authenticatable
         'steps',
         'food_preferences',
         'allergies',
+        'profile_photo_path',
         'is_premium',
         'premium_until'
     ];
 
     protected $hidden = [
         'password',
+        'profile_photo_path',
+    ];
+
+    protected $appends = [
+        'profile_photo_url',
     ];
 
     protected $casts = [
@@ -47,6 +53,17 @@ class User extends Authenticatable
         'carbs' => 'float',
         'water' => 'float',
     ];
+
+    public function getProfilePhotoUrlAttribute(): ?string
+    {
+        if (!$this->profile_photo_path) {
+            return null;
+        }
+
+        return request()->is('api/*')
+            ? url('/api/profile/photo/file')
+            : route('profile.photo.file');
+    }
 
     public function isPremiumActive(): bool
     {

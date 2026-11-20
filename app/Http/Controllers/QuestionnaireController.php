@@ -79,7 +79,7 @@ class QuestionnaireController extends Controller
         } elseif ($currentStep === 'gender') {
             $rules['gender'] = 'required|in:male,female';
         } elseif ($currentStep === 'activity') {
-            $rules['activity_level'] = 'required|in:low,medium,high,expert';
+            $rules['activity_level'] = 'required|in:low,base,medium,high,expert';
         }
 
         $validated = $request->validate($rules);

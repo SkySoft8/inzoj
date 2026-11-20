@@ -44,7 +44,7 @@ use Illuminate\Http\Request;
  *                 @OA\Property(property="height", type="integer", nullable=true),
  *                 @OA\Property(property="age", type="integer", nullable=true),
  *                 @OA\Property(property="gender", type="string", enum={"male", "female"}, nullable=true),
- *                 @OA\Property(property="activity_level", type="string", enum={"low", "medium", "high", "expert"}, nullable=true)
+ *                 @OA\Property(property="activity_level", type="string", enum={"low", "base", "medium", "high", "expert"}, nullable=true)
  *             ),
  *             @OA\Property(
  *                 property="steps",
@@ -116,7 +116,7 @@ use Illuminate\Http\Request;
  *                     ),
  *                     @OA\Schema(
  *                         required={"activity_level"},
- *                         @OA\Property(property="activity_level", type="string", enum={"low", "medium", "high", "expert"}, example="medium")
+ *                         @OA\Property(property="activity_level", type="string", enum={"low", "base", "medium", "high", "expert"}, example="base")
  *                     )
  *                 }
  *             )

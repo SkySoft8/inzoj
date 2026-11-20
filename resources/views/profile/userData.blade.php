@@ -33,6 +33,7 @@
         <div class="flex flex-col gap-1">
             <p>Индекс массы тела: {{ $calculated_data['imt'] ?? '—' }} ({{ $calculated_data['imt_classification'] ?? 'недостаточно данных' }})</p>
             <p>Базовый метаболизм: {{ $calculated_data['bmr'] ?? '—' }} ккал</p>
+            <p>Расход энергии с учётом активности (TDEE): {{ $calculated_data['tdee'] ?? '—' }} ккал</p>
             <p>Суточная норма калорий: {{ $calculated_data['calories_norm'] ?? '—' }} ккал</p>
         </div>
         

@@ -22,10 +22,11 @@
         }
 
         $activity_convertor = [
-            'low' => 'Низкий',
-            'medium' => 'Средний',
-            'high' => 'Высокий',
-            'expert' => 'Профи'
+            'low' => 'Очень низкий (сидячий образ жизни)',
+            'base' => 'Низкий (лёгкие нагрузки 1–3 дня в неделю)',
+            'medium' => 'Средний (умеренные нагрузки 3–5 дней в неделю)',
+            'high' => 'Высокий (интенсивные нагрузки 6–7 дней в неделю)',
+            'expert' => 'Очень высокий (ежедневные тренировки)'
         ];
         if($field == 'activity_level' && $user->$field){
             $current_field = $activity_convertor[$current_field];
@@ -45,7 +46,7 @@
             </button>
         </form>
         @endforeach
-        
+
         <form method="GET" action="{{ route('profile') }}">
             @csrf
             <button type="submit" class="rounded w-full flex justify-center py-2 px-4 font-medium text-red-600">
@@ -63,7 +64,6 @@
             <label class="text-md font-medium">
                 {{ $fields[$editingField] }}
             </label>
-            
             @if($editingField === 'goal')
             <select name="value" class="w-full rounded py-3 px-4">
                 <option value="">Выберите цель</option>
@@ -75,14 +75,15 @@
             @elseif($editingField === 'activity_level')
             <select name="value" class="w-full rounded py-3 px-4">
                 <option value="">Выберите уровень активности</option>
-                <option value="low" {{ $user->goal == 'low' ? 'selected' : '' }}>Низкий</option>
-                <option value="medium" {{ $user->goal == 'medium' ? 'selected' : '' }}>Средний</option>
-                <option value="high" {{ $user->goal == 'high' ? 'selected' : '' }}>Высокий</option>
-                <option value="expert" {{ $user->goal == 'expert' ? 'selected' : '' }}>Профи</option>
+                <option value="low" {{ $user->activity_level == 'low' ? 'selected' : '' }}>Очень низкий (сидячий образ жизни)</option>
+                <option value="base" {{ $user->activity_level == 'base' ? 'selected' : '' }}>Низкий (лёгкие нагрузки 1–3 дня в неделю)</option>
+                <option value="medium" {{ $user->activity_level == 'medium' ? 'selected' : '' }}>Средний (умеренные нагрузки 3–5 дней в неделю)</option>
+                <option value="high" {{ $user->activity_level == 'high' ? 'selected' : '' }}>Высокий (интенсивные нагрузки 6–7 дней в неделю)</option>
+                <option value="expert" {{ $user->activity_level == 'expert' ? 'selected' : '' }}>Очень высокий (ежедневные тренировки)</option>
             </select>
 
             @else
-            <input type="text" name="value" value="{{ old('value', $user->$editingField) }}" 
+            <input type="text" name="value" value="{{ old('value', $user->$editingField) }}"
                    class="w-full rounded py-3 px-4">
             @endif
 
