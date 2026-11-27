@@ -19,7 +19,7 @@
             "description": "Current host"
         },
         {
-            "url": "http://localhost",
+            "url": "http://localhost:8000",
             "description": "Configured host"
         }
     ],
@@ -3439,6 +3439,144 @@
                 ]
             }
         },
+        "/api/profile/photo": {
+            "post": {
+                "tags": [
+                    "Profile Photo"
+                ],
+                "summary": "Upload or replace profile photo",
+                "description": "Stores the uploaded image on the private disk and replaces the previous profile photo if one exists.",
+                "operationId": "uploadProfilePhoto",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "required": [
+                                    "photo"
+                                ],
+                                "properties": {
+                                    "photo": {
+                                        "description": "Image up to 5 MB (jpeg, jpg, png, webp)",
+                                        "type": "string",
+                                        "format": "binary"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Profile photo saved",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Profile photo updated"
+                                        },
+                                        "profile_photo_url": {
+                                            "type": "string",
+                                            "example": "http://localhost:8000/api/profile/photo/file"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    }
+                },
+                "security": [
+                    {
+                        "userSanctumToken": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Profile Photo"
+                ],
+                "summary": "Delete profile photo",
+                "operationId": "deleteProfilePhoto",
+                "responses": {
+                    "200": {
+                        "description": "Profile photo deleted",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Profile photo deleted"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    }
+                },
+                "security": [
+                    {
+                        "userSanctumToken": []
+                    }
+                ]
+            }
+        },
+        "/api/profile/photo/file": {
+            "get": {
+                "tags": [
+                    "Profile Photo"
+                ],
+                "summary": "Get profile photo file",
+                "description": "Streams the authenticated user's profile photo from the private disk.",
+                "operationId": "getProfilePhotoFile",
+                "responses": {
+                    "200": {
+                        "description": "Image content",
+                        "content": {
+                            "image/*": {
+                                "schema": {
+                                    "type": "string",
+                                    "format": "binary"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Profile photo not found"
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    }
+                },
+                "security": [
+                    {
+                        "userSanctumToken": []
+                    }
+                ]
+            }
+        },
         "/api/questionnaire": {
             "get": {
                 "tags": [
@@ -3537,6 +3675,7 @@
                                                     "type": "string",
                                                     "enum": [
                                                         "low",
+                                                        "base",
                                                         "medium",
                                                         "high",
                                                         "expert"
@@ -3728,11 +3867,12 @@
                                                 "type": "string",
                                                 "enum": [
                                                     "low",
+                                                    "base",
                                                     "medium",
                                                     "high",
                                                     "expert"
                                                 ],
-                                                "example": "medium"
+                                                "example": "base"
                                             }
                                         },
                                         "type": "object"
@@ -6217,13 +6357,94 @@
                 ]
             }
         },
+        "/api/stats/period": {
+            "get": {
+                "tags": [
+                    "Stats"
+                ],
+                "summary": "Statistics for any period",
+                "description": "Returns calories, BJU, weight dynamics, main nutrients, minerals, vitamins and recommendations. Averages are calculated over tracked days. Micronutrient values come from product nutrient data; coverage_percent shows how much of the eaten weight had that data. Recommendations are loaded from the recommendations table and evaluated by metric, comparison, threshold and their own week/month/period window.",
+                "operationId": "statsPeriod",
+                "parameters": [
+                    {
+                        "name": "from",
+                        "in": "query",
+                        "schema": {
+                            "type": "string",
+                            "format": "date",
+                            "example": "2026-10-01"
+                        }
+                    },
+                    {
+                        "name": "to",
+                        "in": "query",
+                        "schema": {
+                            "type": "string",
+                            "format": "date",
+                            "example": "2026-10-31"
+                        }
+                    },
+                    {
+                        "name": "period",
+                        "in": "query",
+                        "description": "Preset used when from/to are omitted",
+                        "schema": {
+                            "type": "string",
+                            "default": "week",
+                            "enum": [
+                                "week",
+                                "month",
+                                "custom"
+                            ]
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Period statistics",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/StatsPeriod"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Invalid period or period longer than 366 days",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Period must be 366 days or less"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "userSanctumToken": []
+                    }
+                ]
+            }
+        },
         "/api/stats/week": {
             "get": {
                 "tags": [
                     "Stats"
                 ],
-                "summary": "Week screen for the statistics mock",
-                "description": "Returns the main tab and the nutrients tab for a period. Calories, proteins, fats and carbs are the average per day. Fiber, minerals and vitamins are listed with tracked=false because the diary does not store them. attention contains shortage cards below 80 percent of the daily goal, with text and products for the detail screen.",
+                "summary": "Weekly statistics (alias of /api/stats/period)",
+                "description": "Backward-compatible alias: same payload as /api/stats/period, defaults to the current week. Recommendations are returned under the legacy attention key.",
                 "operationId": "statsWeek",
                 "parameters": [
                     {
@@ -6247,10 +6468,34 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "Week layout data"
+                        "description": "Week layout data; recommendations are under the attention key",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/StatsPeriodWeek"
+                                }
+                            }
+                        }
                     },
                     "422": {
-                        "description": "Invalid period"
+                        "description": "Invalid period",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "to must be on or after from"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
                     }
                 },
                 "security": [
@@ -6930,6 +7175,7 @@
                                                 "type": "string",
                                                 "enum": [
                                                     "low",
+                                                    "base",
                                                     "medium",
                                                     "high",
                                                     "expert"
@@ -9264,6 +9510,12 @@
                         "example": "Дима",
                         "nullable": true
                     },
+                    "profile_photo_url": {
+                        "description": "Authenticated endpoint returning the user's profile photo",
+                        "type": "string",
+                        "example": "/api/profile/photo/file",
+                        "nullable": true
+                    },
                     "email": {
                         "description": "Email address",
                         "type": "string",
@@ -9321,6 +9573,7 @@
                         "type": "string",
                         "enum": [
                             "low",
+                            "base",
                             "medium",
                             "high",
                             "expert"
@@ -10272,6 +10525,600 @@
                     }
                 },
                 "type": "object"
+            },
+            "StatsNutrient": {
+                "properties": {
+                    "code": {
+                        "type": "string",
+                        "example": "proteins"
+                    },
+                    "label": {
+                        "type": "string",
+                        "example": "Белки"
+                    },
+                    "category": {
+                        "type": "string",
+                        "enum": [
+                            "main",
+                            "mineral",
+                            "vitamin"
+                        ],
+                        "example": "main"
+                    },
+                    "eaten": {
+                        "description": "Average per tracked day",
+                        "type": "number",
+                        "example": 95.4,
+                        "nullable": true
+                    },
+                    "goal": {
+                        "type": "number",
+                        "example": 120,
+                        "nullable": true
+                    },
+                    "percent": {
+                        "type": "integer",
+                        "example": 80,
+                        "nullable": true
+                    },
+                    "unit": {
+                        "type": "string",
+                        "example": "г"
+                    },
+                    "tracked": {
+                        "type": "boolean",
+                        "example": true
+                    },
+                    "estimated": {
+                        "description": "True when nutrient coverage is below 95%",
+                        "type": "boolean",
+                        "example": false
+                    },
+                    "coverage": {
+                        "description": "Percent of eaten weight that had nutrient data",
+                        "type": "number",
+                        "example": 100
+                    }
+                },
+                "type": "object"
+            },
+            "StatsPeriodDay": {
+                "properties": {
+                    "date": {
+                        "type": "string",
+                        "format": "date",
+                        "example": "2026-10-01"
+                    },
+                    "value": {
+                        "type": "number",
+                        "example": 1950
+                    },
+                    "goal": {
+                        "type": "number",
+                        "example": 2200,
+                        "nullable": true
+                    },
+                    "tracked": {
+                        "type": "boolean",
+                        "example": true
+                    }
+                },
+                "type": "object"
+            },
+            "StatsWeightPoint": {
+                "properties": {
+                    "date": {
+                        "type": "string",
+                        "format": "date",
+                        "example": "2026-10-01"
+                    },
+                    "value": {
+                        "type": "number",
+                        "example": 75.5
+                    }
+                },
+                "type": "object"
+            },
+            "StatsRecommendation": {
+                "properties": {
+                    "code": {
+                        "type": "string",
+                        "example": "low_protein"
+                    },
+                    "title": {
+                        "type": "string",
+                        "example": "Мало белка"
+                    },
+                    "text": {
+                        "type": "string",
+                        "example": "Среднее потребление белка 80% от нормы"
+                    },
+                    "severity": {
+                        "type": "string",
+                        "enum": [
+                            "info",
+                            "warning",
+                            "critical"
+                        ],
+                        "example": "warning"
+                    },
+                    "period": {
+                        "type": "string",
+                        "enum": [
+                            "day",
+                            "week",
+                            "month",
+                            "period"
+                        ],
+                        "example": "week"
+                    },
+                    "metric": {
+                        "type": "string",
+                        "example": "nutrient_percent"
+                    },
+                    "nutrient_code": {
+                        "type": "string",
+                        "example": "proteins",
+                        "nullable": true
+                    },
+                    "value": {
+                        "type": "number",
+                        "example": 80,
+                        "nullable": true
+                    },
+                    "threshold": {
+                        "type": "number",
+                        "example": 90,
+                        "nullable": true
+                    },
+                    "threshold_max": {
+                        "type": "number",
+                        "nullable": true
+                    },
+                    "unit": {
+                        "type": "string",
+                        "example": "%",
+                        "nullable": true
+                    },
+                    "priority": {
+                        "type": "integer",
+                        "example": 10
+                    },
+                    "eaten": {
+                        "type": "number",
+                        "example": 95.4,
+                        "nullable": true
+                    },
+                    "goal": {
+                        "type": "number",
+                        "example": 120,
+                        "nullable": true
+                    },
+                    "percent": {
+                        "type": "integer",
+                        "example": 80,
+                        "nullable": true
+                    },
+                    "coverage": {
+                        "type": "number",
+                        "example": 100,
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "StatsPeriod": {
+                "properties": {
+                    "success": {
+                        "type": "boolean",
+                        "example": true
+                    },
+                    "period": {
+                        "properties": {
+                            "from": {
+                                "type": "string",
+                                "format": "date",
+                                "example": "2026-10-01"
+                            },
+                            "to": {
+                                "type": "string",
+                                "format": "date",
+                                "example": "2026-10-31"
+                            },
+                            "label": {
+                                "type": "string",
+                                "example": "01.10–31.10"
+                            },
+                            "days": {
+                                "type": "integer",
+                                "example": 31
+                            },
+                            "tracked_days": {
+                                "type": "integer",
+                                "example": 20
+                            }
+                        },
+                        "type": "object"
+                    },
+                    "calories": {
+                        "properties": {
+                            "label": {
+                                "type": "string",
+                                "example": "Калории"
+                            },
+                            "eaten": {
+                                "type": "number",
+                                "example": 1850
+                            },
+                            "goal": {
+                                "type": "number",
+                                "example": 2200,
+                                "nullable": true
+                            },
+                            "percent": {
+                                "type": "integer",
+                                "example": 84,
+                                "nullable": true
+                            },
+                            "unit": {
+                                "type": "string",
+                                "example": "ккал"
+                            },
+                            "days": {
+                                "type": "array",
+                                "items": {
+                                    "$ref": "#/components/schemas/StatsPeriodDay"
+                                }
+                            }
+                        },
+                        "type": "object"
+                    },
+                    "bju": {
+                        "description": "Proteins, fats and carbs macros",
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/StatsNutrient"
+                        }
+                    },
+                    "weight": {
+                        "properties": {
+                            "unit": {
+                                "type": "string",
+                                "example": "кг"
+                            },
+                            "points": {
+                                "type": "array",
+                                "items": {
+                                    "$ref": "#/components/schemas/StatsWeightPoint"
+                                }
+                            },
+                            "start": {
+                                "type": "number",
+                                "example": 76.2,
+                                "nullable": true
+                            },
+                            "current": {
+                                "type": "number",
+                                "example": 75.5,
+                                "nullable": true
+                            },
+                            "change": {
+                                "description": "Null when fewer than two weight logs",
+                                "type": "number",
+                                "example": -0.7,
+                                "nullable": true
+                            }
+                        },
+                        "type": "object"
+                    },
+                    "water": {
+                        "properties": {
+                            "label": {
+                                "type": "string",
+                                "example": "Вода"
+                            },
+                            "unit": {
+                                "type": "string",
+                                "example": "л"
+                            },
+                            "eaten": {
+                                "type": "number",
+                                "example": 1.8
+                            },
+                            "goal": {
+                                "type": "number",
+                                "example": 2.5,
+                                "nullable": true
+                            },
+                            "percent": {
+                                "type": "integer",
+                                "example": 72,
+                                "nullable": true
+                            },
+                            "tracked": {
+                                "type": "boolean",
+                                "example": true
+                            }
+                        },
+                        "type": "object"
+                    },
+                    "steps": {
+                        "properties": {
+                            "label": {
+                                "type": "string",
+                                "example": "Шаги"
+                            },
+                            "unit": {
+                                "type": "string",
+                                "example": "шаг."
+                            },
+                            "eaten": {
+                                "type": "number",
+                                "example": 8500
+                            },
+                            "goal": {
+                                "type": "number",
+                                "example": 10000,
+                                "nullable": true
+                            },
+                            "percent": {
+                                "type": "integer",
+                                "example": 85,
+                                "nullable": true
+                            },
+                            "tracked": {
+                                "type": "boolean",
+                                "example": true
+                            }
+                        },
+                        "type": "object"
+                    },
+                    "nutrients": {
+                        "properties": {
+                            "coverage_percent": {
+                                "type": "number",
+                                "example": 87.5
+                            },
+                            "has_data": {
+                                "type": "boolean",
+                                "example": true
+                            },
+                            "main": {
+                                "type": "array",
+                                "items": {
+                                    "$ref": "#/components/schemas/StatsNutrient"
+                                }
+                            },
+                            "minerals": {
+                                "type": "array",
+                                "items": {
+                                    "$ref": "#/components/schemas/StatsNutrient"
+                                }
+                            },
+                            "vitamins": {
+                                "type": "array",
+                                "items": {
+                                    "$ref": "#/components/schemas/StatsNutrient"
+                                }
+                            }
+                        },
+                        "type": "object"
+                    },
+                    "recommendations": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/StatsRecommendation"
+                        }
+                    }
+                },
+                "type": "object"
+            },
+            "StatsPeriodWeek": {
+                "description": "Same payload as StatsPeriod, but recommendations are returned under the legacy attention key",
+                "properties": {
+                    "success": {
+                        "type": "boolean",
+                        "example": true
+                    },
+                    "period": {
+                        "properties": {
+                            "from": {
+                                "type": "string",
+                                "format": "date",
+                                "example": "2026-08-18"
+                            },
+                            "to": {
+                                "type": "string",
+                                "format": "date",
+                                "example": "2026-08-24"
+                            },
+                            "label": {
+                                "type": "string",
+                                "example": "18.08–24.08"
+                            },
+                            "days": {
+                                "type": "integer",
+                                "example": 7
+                            },
+                            "tracked_days": {
+                                "type": "integer",
+                                "example": 5
+                            }
+                        },
+                        "type": "object"
+                    },
+                    "calories": {
+                        "properties": {
+                            "label": {
+                                "type": "string",
+                                "example": "Калории"
+                            },
+                            "eaten": {
+                                "type": "number",
+                                "example": 1850
+                            },
+                            "goal": {
+                                "type": "number",
+                                "example": 2200,
+                                "nullable": true
+                            },
+                            "percent": {
+                                "type": "integer",
+                                "example": 84,
+                                "nullable": true
+                            },
+                            "unit": {
+                                "type": "string",
+                                "example": "ккал"
+                            },
+                            "days": {
+                                "type": "array",
+                                "items": {
+                                    "$ref": "#/components/schemas/StatsPeriodDay"
+                                }
+                            }
+                        },
+                        "type": "object"
+                    },
+                    "bju": {
+                        "description": "Proteins, fats and carbs macros",
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/StatsNutrient"
+                        }
+                    },
+                    "weight": {
+                        "properties": {
+                            "unit": {
+                                "type": "string",
+                                "example": "кг"
+                            },
+                            "points": {
+                                "type": "array",
+                                "items": {
+                                    "$ref": "#/components/schemas/StatsWeightPoint"
+                                }
+                            },
+                            "start": {
+                                "type": "number",
+                                "example": 76.2,
+                                "nullable": true
+                            },
+                            "current": {
+                                "type": "number",
+                                "example": 75.5,
+                                "nullable": true
+                            },
+                            "change": {
+                                "description": "Null when fewer than two weight logs",
+                                "type": "number",
+                                "example": -0.7,
+                                "nullable": true
+                            }
+                        },
+                        "type": "object"
+                    },
+                    "water": {
+                        "properties": {
+                            "label": {
+                                "type": "string",
+                                "example": "Вода"
+                            },
+                            "unit": {
+                                "type": "string",
+                                "example": "л"
+                            },
+                            "eaten": {
+                                "type": "number",
+                                "example": 1.8
+                            },
+                            "goal": {
+                                "type": "number",
+                                "example": 2.5,
+                                "nullable": true
+                            },
+                            "percent": {
+                                "type": "integer",
+                                "example": 72,
+                                "nullable": true
+                            },
+                            "tracked": {
+                                "type": "boolean",
+                                "example": true
+                            }
+                        },
+                        "type": "object"
+                    },
+                    "steps": {
+                        "properties": {
+                            "label": {
+                                "type": "string",
+                                "example": "Шаги"
+                            },
+                            "unit": {
+                                "type": "string",
+                                "example": "шаг."
+                            },
+                            "eaten": {
+                                "type": "number",
+                                "example": 8500
+                            },
+                            "goal": {
+                                "type": "number",
+                                "example": 10000,
+                                "nullable": true
+                            },
+                            "percent": {
+                                "type": "integer",
+                                "example": 85,
+                                "nullable": true
+                            },
+                            "tracked": {
+                                "type": "boolean",
+                                "example": true
+                            }
+                        },
+                        "type": "object"
+                    },
+                    "nutrients": {
+                        "properties": {
+                            "coverage_percent": {
+                                "type": "number",
+                                "example": 87.5
+                            },
+                            "has_data": {
+                                "type": "boolean",
+                                "example": true
+                            },
+                            "main": {
+                                "type": "array",
+                                "items": {
+                                    "$ref": "#/components/schemas/StatsNutrient"
+                                }
+                            },
+                            "minerals": {
+                                "type": "array",
+                                "items": {
+                                    "$ref": "#/components/schemas/StatsNutrient"
+                                }
+                            },
+                            "vitamins": {
+                                "type": "array",
+                                "items": {
+                                    "$ref": "#/components/schemas/StatsNutrient"
+                                }
+                            }
+                        },
+                        "type": "object"
+                    },
+                    "attention": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/StatsRecommendation"
+                        }
+                    }
+                },
+                "type": "object"
             }
         },
         "securitySchemes": {
@@ -10341,6 +11188,10 @@
         {
             "name": "Diary - Products",
             "description": "Product management in diary meals"
+        },
+        {
+            "name": "Profile Photo",
+            "description": "Private profile photo upload, replacement and delivery"
         },
         {
             "name": "Questionnaire",

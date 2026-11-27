@@ -6,7 +6,7 @@ use App\Models\BodyLog;
 use App\Models\DiaryNote;
 use App\Models\ProgressPhoto;
 use App\Services\NutritionCalculator;
-use App\Services\WeekStats;
+use App\Services\PeriodStats;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
@@ -16,7 +16,40 @@ class StatsController extends Controller
 {
     public function summary(Request $request)
     {
+        return response()->json($this->summaryPayload(Auth::user()));
+    }
+
+    public function show(Request $request)
+    {
+        $validated = $request->validate([
+            'from' => 'nullable|date',
+            'to' => 'nullable|date',
+            'period' => 'nullable|in:week,month,custom',
+        ]);
+
+        [$from, $to] = $this->periodDates($validated);
+
+        if ($to->lt($from)) {
+            abort(422, 'to must be on or after from');
+        }
+
+        if ($from->diffInDays($to) + 1 > PeriodStats::MAX_PERIOD_DAYS) {
+            abort(422, 'Period must be '.PeriodStats::MAX_PERIOD_DAYS.' days or less');
+        }
+
         $user = Auth::user();
+
+        return view('profile.stats', [
+            'stats' => PeriodStats::build($user, $from, $to),
+            'summary' => $this->summaryPayload($user),
+            'period' => $validated['period'] ?? 'week',
+            'from' => $from->toDateString(),
+            'to' => $to->toDateString(),
+        ]);
+    }
+
+    private function summaryPayload($user): array
+    {
         $weightLogs = BodyLog::where('user_id', $user->id)
             ->where('type', BodyLog::TYPE_WEIGHT)
             ->orderBy('logged_at')
@@ -53,29 +86,28 @@ class StatsController extends Controller
             ];
         }
 
-        return response()->json($payload);
+        return $payload;
+    }
+
+    public function period(Request $request)
+    {
+        return $this->periodResponse($request);
     }
 
     public function week(Request $request)
     {
+        return $this->periodResponse($request, true);
+    }
+
+    private function periodResponse(Request $request, bool $legacyWeekKeys = false)
+    {
         $validated = $request->validate([
             'from' => 'nullable|date',
             'to' => 'nullable|date',
+            'period' => 'nullable|in:week,month,custom',
         ]);
 
-        if (empty($validated['from']) && empty($validated['to'])) {
-            $from = now()->startOfWeek()->startOfDay();
-            $to = now()->endOfWeek()->startOfDay();
-        } elseif (empty($validated['to'])) {
-            $from = Carbon::parse($validated['from'])->startOfDay();
-            $to = $from->copy()->addDays(6);
-        } elseif (empty($validated['from'])) {
-            $to = Carbon::parse($validated['to'])->startOfDay();
-            $from = $to->copy()->subDays(6);
-        } else {
-            $from = Carbon::parse($validated['from'])->startOfDay();
-            $to = Carbon::parse($validated['to'])->startOfDay();
-        }
+        [$from, $to] = $this->periodDates($validated);
 
         if ($to->lt($from)) {
             return response()->json([
@@ -84,14 +116,57 @@ class StatsController extends Controller
             ], 422);
         }
 
-        if ($from->diffInDays($to) > 30) {
+        if ($from->diffInDays($to) + 1 > PeriodStats::MAX_PERIOD_DAYS) {
             return response()->json([
                 'success' => false,
-                'message' => 'Period must be 31 days or less',
+                'message' => 'Period must be '.PeriodStats::MAX_PERIOD_DAYS.' days or less',
             ], 422);
         }
 
-        return response()->json(WeekStats::build(Auth::user(), $from, $to));
+        $payload = PeriodStats::build(Auth::user(), $from, $to);
+
+        if ($legacyWeekKeys) {
+            $payload['attention'] = $payload['recommendations'];
+            unset($payload['recommendations']);
+        }
+
+        return response()->json($payload);
+    }
+
+    private function periodDates(array $validated): array
+    {
+        $preset = $validated['period'] ?? 'week';
+
+        if (empty($validated['from']) && empty($validated['to'])) {
+            if ($preset === 'month') {
+                return [
+                    now()->startOfMonth()->startOfDay(),
+                    now()->endOfMonth()->startOfDay(),
+                ];
+            }
+
+            return [
+                now()->startOfWeek()->startOfDay(),
+                now()->endOfWeek()->startOfDay(),
+            ];
+        }
+
+        if (empty($validated['to'])) {
+            $from = Carbon::parse($validated['from'])->startOfDay();
+
+            return [$from, $from->copy()->addDays(6)];
+        }
+
+        if (empty($validated['from'])) {
+            $to = Carbon::parse($validated['to'])->startOfDay();
+
+            return [$to->copy()->subDays(6), $to];
+        }
+
+        return [
+            Carbon::parse($validated['from'])->startOfDay(),
+            Carbon::parse($validated['to'])->startOfDay(),
+        ];
     }
 
     public function series(Request $request)
@@ -110,7 +185,7 @@ class StatsController extends Controller
 
         $user = Auth::user();
 
-        if (BodyLog::isPremiumType($metric) && !$user->isPremiumActive()) {
+        if (BodyLog::isPremiumType($metric) && ! $user->isPremiumActive()) {
             return $this->premiumRequired();
         }
 
@@ -147,16 +222,16 @@ class StatsController extends Controller
         $type = $validated['type'] ?? BodyLog::TYPE_WEIGHT;
         $user = Auth::user();
 
-        if (BodyLog::isPremiumType($type) && !$user->isPremiumActive()) {
+        if (BodyLog::isPremiumType($type) && ! $user->isPremiumActive()) {
             return $this->premiumRequired();
         }
 
         $query = BodyLog::where('user_id', $user->id)->where('type', $type)->orderBy('logged_at');
 
-        if (!empty($validated['from'])) {
+        if (! empty($validated['from'])) {
             $query->whereDate('logged_at', '>=', $validated['from']);
         }
-        if (!empty($validated['to'])) {
+        if (! empty($validated['to'])) {
             $query->whereDate('logged_at', '<=', $validated['to']);
         }
 
@@ -178,7 +253,7 @@ class StatsController extends Controller
 
         $user = Auth::user();
 
-        if (BodyLog::isPremiumType($validated['type']) && !$user->isPremiumActive()) {
+        if (BodyLog::isPremiumType($validated['type']) && ! $user->isPremiumActive()) {
             return $this->premiumRequired();
         }
 
@@ -210,7 +285,7 @@ class StatsController extends Controller
         $user = Auth::user();
         $log = BodyLog::where('user_id', $user->id)->find($id);
 
-        if (!$log) {
+        if (! $log) {
             return response()->json([
                 'success' => false,
                 'message' => 'Log not found',
@@ -282,7 +357,7 @@ class StatsController extends Controller
     public function photos(Request $request)
     {
         $user = Auth::user();
-        if (!$user->isPremiumActive()) {
+        if (! $user->isPremiumActive()) {
             return $this->premiumRequired();
         }
 
@@ -300,7 +375,7 @@ class StatsController extends Controller
     public function storePhoto(Request $request)
     {
         $user = Auth::user();
-        if (!$user->isPremiumActive()) {
+        if (! $user->isPremiumActive()) {
             return $this->premiumRequired();
         }
 
@@ -353,12 +428,12 @@ class StatsController extends Controller
     public function showFile(Request $request, $id)
     {
         $user = Auth::user();
-        if (!$user->isPremiumActive()) {
+        if (! $user->isPremiumActive()) {
             return $this->premiumRequired();
         }
 
         $photo = ProgressPhoto::where('user_id', $user->id)->find($id);
-        if (!$photo || !Storage::disk('local')->exists($photo->path)) {
+        if (! $photo || ! Storage::disk('local')->exists($photo->path)) {
             return response()->json([
                 'success' => false,
                 'message' => 'Photo not found',
@@ -371,12 +446,12 @@ class StatsController extends Controller
     public function deletePhoto(Request $request, $id)
     {
         $user = Auth::user();
-        if (!$user->isPremiumActive()) {
+        if (! $user->isPremiumActive()) {
             return $this->premiumRequired();
         }
 
         $photo = ProgressPhoto::where('user_id', $user->id)->find($id);
-        if (!$photo) {
+        if (! $photo) {
             return response()->json([
                 'success' => false,
                 'message' => 'Photo not found',
@@ -482,7 +557,7 @@ class StatsController extends Controller
             'blood_pressure_dia' => [30, 150],
         ];
 
-        if (!isset($ranges[$type])) {
+        if (! isset($ranges[$type])) {
             return null;
         }
 

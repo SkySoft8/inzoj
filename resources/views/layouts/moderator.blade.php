@@ -21,6 +21,8 @@
             <a href="{{ route('moderator.recipes') }}" class="rounded px-3 py-2 font-medium bg-white border {{ request()->routeIs('moderator.recipes*') ? 'border-indigo-600 text-indigo-600' : '' }}">Рецепты</a>
             <a href="{{ route('moderator.restaurants') }}" class="rounded px-3 py-2 font-medium bg-white border {{ request()->routeIs('moderator.restaurants*') ? 'border-indigo-600 text-indigo-600' : '' }}">Рестораны</a>
             <a href="{{ route('moderator.trainers') }}" class="rounded px-3 py-2 font-medium bg-white border {{ request()->routeIs('moderator.trainers*') ? 'border-indigo-600 text-indigo-600' : '' }}">Тренеры</a>
+            <a href="{{ route('moderator.products') }}" class="rounded px-3 py-2 font-medium bg-white border {{ request()->routeIs('moderator.products*') ? 'border-indigo-600 text-indigo-600' : '' }}">Продукты</a>
+            <a href="{{ route('moderator.recommendations') }}" class="rounded px-3 py-2 font-medium bg-white border {{ request()->routeIs('moderator.recommendations*') ? 'border-indigo-600 text-indigo-600' : '' }}">Рекомендации</a>
         </nav>
 
         @if (session('success'))

@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use App\Models\RestaurantUser;
+use App\Models\Restaurants\Restaurant;
 use Illuminate\Support\Facades\Hash;
 
 class RestaurantUserSeeder extends Seeder
@@ -21,11 +22,16 @@ class RestaurantUserSeeder extends Seeder
             return;
         }
 
-        $restaurant = RestaurantUser::create([
+        $restaurant = Restaurant::firstOrCreate(
+            ['id' => 2],
+            ['name' => 'Zavtraki', 'restaurant_type' => 'cafe']
+        );
+
+        RestaurantUser::create([
             'name' => 'Zavtraki',
             'email' => 'zav.r@gmail.com',
             'password' => Hash::make('password'),
-            'restaurant_id' => 2,
+            'restaurant_id' => $restaurant->id,
             'created_at' => now(),
             'updated_at' => now(),
         ]);
