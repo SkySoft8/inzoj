@@ -78,6 +78,9 @@
         <a href="{{ route('ration') }}" class="rounded w-full flex justify-start py-3 px-4 font-medium bg-white border">
             Особенности рациона
         </a>
+        <a href="{{ route('stats') }}" class="rounded w-full flex justify-start py-3 px-4 font-medium bg-white border">
+            Статистика
+        </a>
     </div>
 
     <form method="POST" action="{{ route('logout') }}">

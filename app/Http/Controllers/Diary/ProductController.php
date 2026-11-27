@@ -22,11 +22,14 @@ class ProductController extends Controller
 
         $products = Product::query()
             ->when($query !== '', function ($builder) use ($query) {
-                $builder->where('name', 'like', '%'.$query.'%');
+                $builder->where(function ($builder) use ($query) {
+                    $builder->where('name', 'like', '%'.$query.'%')
+                        ->orWhere('shortcode', 'like', '%'.$query.'%');
+                });
             })
             ->orderBy('name')
             ->limit(30)
-            ->get(['id', 'name', 'calories', 'proteins', 'fats', 'carbs', 'serving_label', 'serving_grams', 'serving_unit']);
+            ->get(['id', 'name', 'shortcode', 'calories', 'proteins', 'fats', 'carbs', 'serving_label', 'serving_grams', 'serving_unit']);
 
         return response()->json([
             'success' => true,

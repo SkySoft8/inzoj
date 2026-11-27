@@ -37,6 +37,8 @@ use App\Http\Controllers\TrainerUser\TrainerTrainingController;
 use App\Http\Controllers\Moderator\ModeratorAuthController;
 use App\Http\Controllers\Moderator\ModerationController;
 use App\Http\Controllers\Moderator\ActivityCatalogController;
+use App\Http\Controllers\Moderator\ProductCatalogController;
+use App\Http\Controllers\Moderator\RecommendationAdminController;
 
 /*
 |--------------------------------------------------------------------------
@@ -153,6 +155,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::prefix('stats')->group(function () {
         Route::get('/summary', [StatsController::class, 'summary']);
+        Route::get('/period', [StatsController::class, 'period']);
         Route::get('/week', [StatsController::class, 'week']);
         Route::get('/series', [StatsController::class, 'series']);
         Route::get('/compare', [StatsController::class, 'compare']);
@@ -245,6 +248,21 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/activities', [ActivityCatalogController::class, 'store']);
         Route::post('/activities/import', [ActivityCatalogController::class, 'import']);
         Route::put('/activities/{id}', [ActivityCatalogController::class, 'update']);
+
+        // Каталог продуктов и правила рекомендаций: API-версия.
+        // Для веб-версии формы уже доступны в панели модератора (/moderator/products,
+        // /moderator/recommendations). Чтобы включить API, раскомментируйте маршруты ниже.
+        // Route::get('/products', [ProductCatalogController::class, 'index']);
+        // Route::post('/products', [ProductCatalogController::class, 'store']);
+        // Route::get('/products/{id}', [ProductCatalogController::class, 'edit']);
+        // Route::put('/products/{id}', [ProductCatalogController::class, 'update']);
+        // Route::delete('/products/{id}', [ProductCatalogController::class, 'destroy']);
+        //
+        // Route::get('/recommendations', [RecommendationAdminController::class, 'index']);
+        // Route::post('/recommendations', [RecommendationAdminController::class, 'store']);
+        // Route::get('/recommendations/{id}', [RecommendationAdminController::class, 'edit']);
+        // Route::put('/recommendations/{id}', [RecommendationAdminController::class, 'update']);
+        // Route::delete('/recommendations/{id}', [RecommendationAdminController::class, 'destroy']);
     });
 });
 

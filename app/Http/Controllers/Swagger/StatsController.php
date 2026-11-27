@@ -33,6 +33,189 @@ use App\Http\Controllers\Controller;
  *     @OA\Property(property="url", type="string", example="/api/stats/photos/1/file")
  * )
  *
+ * @OA\Schema(
+ *     schema="StatsNutrient",
+ *     type="object",
+ *     @OA\Property(property="code", type="string", example="proteins"),
+ *     @OA\Property(property="label", type="string", example="Белки"),
+ *     @OA\Property(property="category", type="string", enum={"main", "mineral", "vitamin"}, example="main"),
+ *     @OA\Property(property="eaten", type="number", nullable=true, description="Average per tracked day", example=95.4),
+ *     @OA\Property(property="goal", type="number", nullable=true, example=120),
+ *     @OA\Property(property="percent", type="integer", nullable=true, example=80),
+ *     @OA\Property(property="unit", type="string", example="г"),
+ *     @OA\Property(property="tracked", type="boolean", example=true),
+ *     @OA\Property(property="estimated", type="boolean", description="True when nutrient coverage is below 95%", example=false),
+ *     @OA\Property(property="coverage", type="number", description="Percent of eaten weight that had nutrient data", example=100)
+ * )
+ *
+ * @OA\Schema(
+ *     schema="StatsPeriodDay",
+ *     type="object",
+ *     @OA\Property(property="date", type="string", format="date", example="2026-10-01"),
+ *     @OA\Property(property="value", type="number", example=1950),
+ *     @OA\Property(property="goal", type="number", nullable=true, example=2200),
+ *     @OA\Property(property="tracked", type="boolean", example=true)
+ * )
+ *
+ * @OA\Schema(
+ *     schema="StatsWeightPoint",
+ *     type="object",
+ *     @OA\Property(property="date", type="string", format="date", example="2026-10-01"),
+ *     @OA\Property(property="value", type="number", example=75.5)
+ * )
+ *
+ * @OA\Schema(
+ *     schema="StatsRecommendation",
+ *     type="object",
+ *     @OA\Property(property="code", type="string", example="low_protein"),
+ *     @OA\Property(property="title", type="string", example="Мало белка"),
+ *     @OA\Property(property="text", type="string", example="Среднее потребление белка 80% от нормы"),
+ *     @OA\Property(property="severity", type="string", enum={"info", "warning", "critical"}, example="warning"),
+ *     @OA\Property(property="period", type="string", enum={"day", "week", "month", "period"}, example="week"),
+ *     @OA\Property(property="metric", type="string", example="nutrient_percent"),
+ *     @OA\Property(property="nutrient_code", type="string", nullable=true, example="proteins"),
+ *     @OA\Property(property="value", type="number", nullable=true, example=80),
+ *     @OA\Property(property="threshold", type="number", nullable=true, example=90),
+ *     @OA\Property(property="threshold_max", type="number", nullable=true),
+ *     @OA\Property(property="unit", type="string", nullable=true, example="%"),
+ *     @OA\Property(property="priority", type="integer", example=10),
+ *     @OA\Property(property="eaten", type="number", nullable=true, example=95.4),
+ *     @OA\Property(property="goal", type="number", nullable=true, example=120),
+ *     @OA\Property(property="percent", type="integer", nullable=true, example=80),
+ *     @OA\Property(property="coverage", type="number", nullable=true, example=100)
+ * )
+ *
+ * @OA\Schema(
+ *     schema="StatsPeriod",
+ *     type="object",
+ *     @OA\Property(property="success", type="boolean", example=true),
+ *     @OA\Property(
+ *         property="period",
+ *         type="object",
+ *         @OA\Property(property="from", type="string", format="date", example="2026-10-01"),
+ *         @OA\Property(property="to", type="string", format="date", example="2026-10-31"),
+ *         @OA\Property(property="label", type="string", example="01.10–31.10"),
+ *         @OA\Property(property="days", type="integer", example=31),
+ *         @OA\Property(property="tracked_days", type="integer", example=20)
+ *     ),
+ *     @OA\Property(
+ *         property="calories",
+ *         type="object",
+ *         @OA\Property(property="label", type="string", example="Калории"),
+ *         @OA\Property(property="eaten", type="number", example=1850),
+ *         @OA\Property(property="goal", type="number", nullable=true, example=2200),
+ *         @OA\Property(property="percent", type="integer", nullable=true, example=84),
+ *         @OA\Property(property="unit", type="string", example="ккал"),
+ *         @OA\Property(property="days", type="array", @OA\Items(ref="#/components/schemas/StatsPeriodDay"))
+ *     ),
+ *     @OA\Property(property="bju", type="array", description="Proteins, fats and carbs macros", @OA\Items(ref="#/components/schemas/StatsNutrient")),
+ *     @OA\Property(
+ *         property="weight",
+ *         type="object",
+ *         @OA\Property(property="unit", type="string", example="кг"),
+ *         @OA\Property(property="points", type="array", @OA\Items(ref="#/components/schemas/StatsWeightPoint")),
+ *         @OA\Property(property="start", type="number", nullable=true, example=76.2),
+ *         @OA\Property(property="current", type="number", nullable=true, example=75.5),
+ *         @OA\Property(property="change", type="number", nullable=true, description="Null when fewer than two weight logs", example=-0.7)
+ *     ),
+ *     @OA\Property(
+ *         property="water",
+ *         type="object",
+ *         @OA\Property(property="label", type="string", example="Вода"),
+ *         @OA\Property(property="unit", type="string", example="л"),
+ *         @OA\Property(property="eaten", type="number", example=1.8),
+ *         @OA\Property(property="goal", type="number", nullable=true, example=2.5),
+ *         @OA\Property(property="percent", type="integer", nullable=true, example=72),
+ *         @OA\Property(property="tracked", type="boolean", example=true)
+ *     ),
+ *     @OA\Property(
+ *         property="steps",
+ *         type="object",
+ *         @OA\Property(property="label", type="string", example="Шаги"),
+ *         @OA\Property(property="unit", type="string", example="шаг."),
+ *         @OA\Property(property="eaten", type="number", example=8500),
+ *         @OA\Property(property="goal", type="number", nullable=true, example=10000),
+ *         @OA\Property(property="percent", type="integer", nullable=true, example=85),
+ *         @OA\Property(property="tracked", type="boolean", example=true)
+ *     ),
+ *     @OA\Property(
+ *         property="nutrients",
+ *         type="object",
+ *         @OA\Property(property="coverage_percent", type="number", example=87.5),
+ *         @OA\Property(property="has_data", type="boolean", example=true),
+ *         @OA\Property(property="main", type="array", @OA\Items(ref="#/components/schemas/StatsNutrient")),
+ *         @OA\Property(property="minerals", type="array", @OA\Items(ref="#/components/schemas/StatsNutrient")),
+ *         @OA\Property(property="vitamins", type="array", @OA\Items(ref="#/components/schemas/StatsNutrient"))
+ *     ),
+ *     @OA\Property(property="recommendations", type="array", @OA\Items(ref="#/components/schemas/StatsRecommendation"))
+ * )
+ *
+ * @OA\Schema(
+ *     schema="StatsPeriodWeek",
+ *     type="object",
+ *     description="Same payload as StatsPeriod, but recommendations are returned under the legacy attention key",
+ *     @OA\Property(property="success", type="boolean", example=true),
+ *     @OA\Property(
+ *         property="period",
+ *         type="object",
+ *         @OA\Property(property="from", type="string", format="date", example="2026-08-18"),
+ *         @OA\Property(property="to", type="string", format="date", example="2026-08-24"),
+ *         @OA\Property(property="label", type="string", example="18.08–24.08"),
+ *         @OA\Property(property="days", type="integer", example=7),
+ *         @OA\Property(property="tracked_days", type="integer", example=5)
+ *     ),
+ *     @OA\Property(
+ *         property="calories",
+ *         type="object",
+ *         @OA\Property(property="label", type="string", example="Калории"),
+ *         @OA\Property(property="eaten", type="number", example=1850),
+ *         @OA\Property(property="goal", type="number", nullable=true, example=2200),
+ *         @OA\Property(property="percent", type="integer", nullable=true, example=84),
+ *         @OA\Property(property="unit", type="string", example="ккал"),
+ *         @OA\Property(property="days", type="array", @OA\Items(ref="#/components/schemas/StatsPeriodDay"))
+ *     ),
+ *     @OA\Property(property="bju", type="array", description="Proteins, fats and carbs macros", @OA\Items(ref="#/components/schemas/StatsNutrient")),
+ *     @OA\Property(
+ *         property="weight",
+ *         type="object",
+ *         @OA\Property(property="unit", type="string", example="кг"),
+ *         @OA\Property(property="points", type="array", @OA\Items(ref="#/components/schemas/StatsWeightPoint")),
+ *         @OA\Property(property="start", type="number", nullable=true, example=76.2),
+ *         @OA\Property(property="current", type="number", nullable=true, example=75.5),
+ *         @OA\Property(property="change", type="number", nullable=true, description="Null when fewer than two weight logs", example=-0.7)
+ *     ),
+ *     @OA\Property(
+ *         property="water",
+ *         type="object",
+ *         @OA\Property(property="label", type="string", example="Вода"),
+ *         @OA\Property(property="unit", type="string", example="л"),
+ *         @OA\Property(property="eaten", type="number", example=1.8),
+ *         @OA\Property(property="goal", type="number", nullable=true, example=2.5),
+ *         @OA\Property(property="percent", type="integer", nullable=true, example=72),
+ *         @OA\Property(property="tracked", type="boolean", example=true)
+ *     ),
+ *     @OA\Property(
+ *         property="steps",
+ *         type="object",
+ *         @OA\Property(property="label", type="string", example="Шаги"),
+ *         @OA\Property(property="unit", type="string", example="шаг."),
+ *         @OA\Property(property="eaten", type="number", example=8500),
+ *         @OA\Property(property="goal", type="number", nullable=true, example=10000),
+ *         @OA\Property(property="percent", type="integer", nullable=true, example=85),
+ *         @OA\Property(property="tracked", type="boolean", example=true)
+ *     ),
+ *     @OA\Property(
+ *         property="nutrients",
+ *         type="object",
+ *         @OA\Property(property="coverage_percent", type="number", example=87.5),
+ *         @OA\Property(property="has_data", type="boolean", example=true),
+ *         @OA\Property(property="main", type="array", @OA\Items(ref="#/components/schemas/StatsNutrient")),
+ *         @OA\Property(property="minerals", type="array", @OA\Items(ref="#/components/schemas/StatsNutrient")),
+ *         @OA\Property(property="vitamins", type="array", @OA\Items(ref="#/components/schemas/StatsNutrient"))
+ *     ),
+ *     @OA\Property(property="attention", type="array", @OA\Items(ref="#/components/schemas/StatsRecommendation"))
+ * )
+ *
  * @OA\Get(
  *     path="/api/stats/summary",
  *     summary="Progress summary",
@@ -43,16 +226,52 @@ use App\Http\Controllers\Controller;
  * )
  *
  * @OA\Get(
+ *     path="/api/stats/period",
+ *     summary="Statistics for any period",
+ *     description="Returns calories, BJU, weight dynamics, main nutrients, minerals, vitamins and recommendations. Averages are calculated over tracked days. Micronutrient values come from product nutrient data; coverage_percent shows how much of the eaten weight had that data. Recommendations are loaded from the recommendations table and evaluated by metric, comparison, threshold and their own week/month/period window.",
+ *     operationId="statsPeriod",
+ *     tags={"Stats"},
+ *     security={{"userSanctumToken": {}}},
+ *     @OA\Parameter(name="from", in="query", @OA\Schema(type="string", format="date", example="2026-10-01")),
+ *     @OA\Parameter(name="to", in="query", @OA\Schema(type="string", format="date", example="2026-10-31")),
+ *     @OA\Parameter(name="period", in="query", description="Preset used when from/to are omitted", @OA\Schema(type="string", enum={"week", "month", "custom"}, default="week")),
+ *     @OA\Response(
+ *         response=200,
+ *         description="Period statistics",
+ *         @OA\JsonContent(ref="#/components/schemas/StatsPeriod")
+ *     ),
+ *     @OA\Response(
+ *         response=422,
+ *         description="Invalid period or period longer than 366 days",
+ *         @OA\JsonContent(
+ *             @OA\Property(property="success", type="boolean", example=false),
+ *             @OA\Property(property="message", type="string", example="Period must be 366 days or less")
+ *         )
+ *     )
+ * )
+ *
+ * @OA\Get(
  *     path="/api/stats/week",
- *     summary="Week screen for the statistics mock",
- *     description="Returns the main tab and the nutrients tab for a period. Calories, proteins, fats and carbs are the average per day. Fiber, minerals and vitamins are listed with tracked=false because the diary does not store them. attention contains shortage cards below 80 percent of the daily goal, with text and products for the detail screen.",
+ *     summary="Weekly statistics (alias of /api/stats/period)",
+ *     description="Backward-compatible alias: same payload as /api/stats/period, defaults to the current week. Recommendations are returned under the legacy attention key.",
  *     operationId="statsWeek",
  *     tags={"Stats"},
  *     security={{"userSanctumToken": {}}},
  *     @OA\Parameter(name="from", in="query", @OA\Schema(type="string", format="date", example="2026-08-18")),
  *     @OA\Parameter(name="to", in="query", @OA\Schema(type="string", format="date", example="2026-08-24")),
- *     @OA\Response(response=200, description="Week layout data"),
- *     @OA\Response(response=422, description="Invalid period")
+ *     @OA\Response(
+ *         response=200,
+ *         description="Week layout data; recommendations are under the attention key",
+ *         @OA\JsonContent(ref="#/components/schemas/StatsPeriodWeek")
+ *     ),
+ *     @OA\Response(
+ *         response=422,
+ *         description="Invalid period",
+ *         @OA\JsonContent(
+ *             @OA\Property(property="success", type="boolean", example=false),
+ *             @OA\Property(property="message", type="string", example="to must be on or after from")
+ *         )
+ *     )
  * )
  *
  * @OA\Get(

@@ -1,38 +1,33 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
-
 use App\Http\Controllers\AuthController;
-use App\Http\Controllers\QuestionnaireController;
-use App\Http\Controllers\PremiumController;
-
-use App\Http\Controllers\Profile\UserDataController;
-use App\Http\Controllers\Profile\TargetsController;
-use App\Http\Controllers\Profile\RationController;
-use App\Http\Controllers\Profile\ProfilePhotoController;
-
+use App\Http\Controllers\Diary\ActivityController;
 use App\Http\Controllers\Diary\DiaryNoteController;
 use App\Http\Controllers\Diary\MealController;
 use App\Http\Controllers\Diary\ProductController;
 use App\Http\Controllers\Diary\RecepieController;
-use App\Http\Controllers\Diary\ActivityController;
 use App\Http\Controllers\Diary\TrainingController;
 use App\Http\Controllers\Diary\WaterController;
-
-use App\Http\Controllers\Restaurant\RestaurantController;
+use App\Http\Controllers\Moderator\ModerationController;
+use App\Http\Controllers\Moderator\ModeratorAuthController;
+use App\Http\Controllers\Moderator\ProductCatalogController;
+use App\Http\Controllers\Moderator\RecommendationAdminController;
+use App\Http\Controllers\PremiumController;
+use App\Http\Controllers\Profile\ProfilePhotoController;
+use App\Http\Controllers\Profile\RationController;
+use App\Http\Controllers\Profile\TargetsController;
+use App\Http\Controllers\Profile\UserDataController;
+use App\Http\Controllers\QuestionnaireController;
 use App\Http\Controllers\Restaurant\DishController;
-
-use App\Http\Controllers\Sport\SportController;
-
+use App\Http\Controllers\Restaurant\RestaurantController;
 use App\Http\Controllers\RestaurantUser\RestaurantAuthController;
 use App\Http\Controllers\RestaurantUser\RestaurantMenuController;
-
+use App\Http\Controllers\Sport\SportController;
+use App\Http\Controllers\StatsController;
 use App\Http\Controllers\TrainerUser\TrainerAuthController;
 use App\Http\Controllers\TrainerUser\TrainerDataController;
 use App\Http\Controllers\TrainerUser\TrainerTrainingController;
-
-use App\Http\Controllers\Moderator\ModeratorAuthController;
-use App\Http\Controllers\Moderator\ModerationController;
+use Illuminate\Support\Facades\Route;
 
 /*
 |--------------------------------------------------------------------------
@@ -51,7 +46,6 @@ Route::get('/csrf-token', function () {
     ]);
 });
 
-
 Route::get('/', function () {
     return redirect()->route('user.login');
 });
@@ -63,7 +57,6 @@ Route::get('/login', function () {
 })->name('user.login');
 Route::post('/register', [AuthController::class, 'register'])->name('user.register.form');
 Route::post('/login', [AuthController::class, 'login'])->name('user.login.form');
-
 
 Route::middleware('auth:web')->group(function () {
     Route::get('/questionnaire', [QuestionnaireController::class, 'show'])->name('questionnaire');
@@ -83,6 +76,8 @@ Route::middleware('auth:web')->group(function () {
     Route::post('/profile/targets/update', [TargetsController::class, 'update'])->name('targets.update');
     Route::get('/profile/ration', [RationController::class, 'show'])->name('ration');
     Route::post('/profile/ration/update', [RationController::class, 'update'])->name('ration.update');
+
+    Route::get('/profile/stats', [StatsController::class, 'show'])->name('stats');
 
     Route::post('/profile/photo', [ProfilePhotoController::class, 'store'])->name('profile.photo.update');
     Route::post('/profile/photo/delete', [ProfilePhotoController::class, 'destroy'])->name('profile.photo.delete');
@@ -116,24 +111,23 @@ Route::middleware('auth:web')->group(function () {
         Route::get('/restaurants/dish', [DishController::class, 'show'])->name('dish');
         Route::post('/restaurants/dish/add', [DishController::class, 'addToDiary'])->name('dish.add');
         Route::post('/restaurants/dish/delete', [DishController::class, 'deleteFromDiary'])->name('dish.delete');
-    
-        Route::get('/filter-trainings', [SportController::class, 'filter'])->name('sport');  
-        Route::get('/trainings', [SportController::class, 'show'])->name('trainings');  
-        Route::post('/signup-training', [SportController::class, 'signUp'])->name('signUpTraining');  
-        Route::get('/user-trainings', [SportController::class, 'userTrainings'])->name('userTrainings');  
-        Route::post('/revoke-training', [SportController::class, 'revoke'])->name('revoke');  
-        Route::post('/trainer', [SportController::class, 'trainer'])->name('trainer');  
-        Route::get('/trainer/rating', [SportController::class, 'rating'])->name('rating');  
+
+        Route::get('/filter-trainings', [SportController::class, 'filter'])->name('sport');
+        Route::get('/trainings', [SportController::class, 'show'])->name('trainings');
+        Route::post('/signup-training', [SportController::class, 'signUp'])->name('signUpTraining');
+        Route::get('/user-trainings', [SportController::class, 'userTrainings'])->name('userTrainings');
+        Route::post('/revoke-training', [SportController::class, 'revoke'])->name('revoke');
+        Route::post('/trainer', [SportController::class, 'trainer'])->name('trainer');
+        Route::get('/trainer/rating', [SportController::class, 'rating'])->name('rating');
     });
 });
-
 
 Route::prefix('restaurant-user')->name('restaurantUser.')->group(function () {
     Route::get('/login', function () {
         return view('restaurantUser.login');
     })->name('login');
     Route::post('/login-check', [RestaurantAuthController::class, 'login'])->name('loginCheck');
-    
+
     Route::middleware('auth:restaurant')->group(function () {
         Route::post('/restaurant/menu/logout', [RestaurantAuthController::class, 'logout'])->name('logout');
 
@@ -148,7 +142,6 @@ Route::prefix('restaurant-user')->name('restaurantUser.')->group(function () {
     });
 });
 
-
 Route::prefix('trainer-user')->name('trainerUser.')->group(function () {
     Route::get('/login', function () {
         return view('trainerUser.login');
@@ -158,7 +151,7 @@ Route::prefix('trainer-user')->name('trainerUser.')->group(function () {
     })->name('register');
     Route::post('/login-check', [TrainerAuthController::class, 'login'])->name('loginCheck');
     Route::post('/register-check', [TrainerAuthController::class, 'register'])->name('registerCheck');
-    
+
     Route::middleware('auth:trainer')->group(function () {
         Route::post('/logout', [TrainerAuthController::class, 'logout'])->name('logout');
         Route::get('/profile', [TrainerDataController::class, 'profile'])->name('profile');
@@ -176,6 +169,7 @@ Route::prefix('moderator')->name('moderator.')->group(function () {
         if (auth('moderator')->check()) {
             return redirect()->route('moderator.queue');
         }
+
         return view('moderator.login');
     })->name('login');
     Route::post('/login', [ModeratorAuthController::class, 'login'])->name('loginCheck');
@@ -195,5 +189,19 @@ Route::prefix('moderator')->name('moderator.')->group(function () {
         Route::get('/trainers', [ModerationController::class, 'trainers'])->name('trainers');
         Route::get('/trainers/{id}', [ModerationController::class, 'showTrainer'])->name('trainers.show');
         Route::post('/trainers/{id}', [ModerationController::class, 'reviewTrainer'])->name('trainers.review');
+
+        Route::get('/products', [ProductCatalogController::class, 'index'])->name('products');
+        Route::get('/products/create', [ProductCatalogController::class, 'create'])->name('products.create');
+        Route::post('/products', [ProductCatalogController::class, 'store'])->name('products.store');
+        Route::get('/products/{id}/edit', [ProductCatalogController::class, 'edit'])->name('products.edit');
+        Route::put('/products/{id}', [ProductCatalogController::class, 'update'])->name('products.update');
+        Route::delete('/products/{id}', [ProductCatalogController::class, 'destroy'])->name('products.destroy');
+
+        Route::get('/recommendations', [RecommendationAdminController::class, 'index'])->name('recommendations');
+        Route::get('/recommendations/create', [RecommendationAdminController::class, 'create'])->name('recommendations.create');
+        Route::post('/recommendations', [RecommendationAdminController::class, 'store'])->name('recommendations.store');
+        Route::get('/recommendations/{id}/edit', [RecommendationAdminController::class, 'edit'])->name('recommendations.edit');
+        Route::put('/recommendations/{id}', [RecommendationAdminController::class, 'update'])->name('recommendations.update');
+        Route::delete('/recommendations/{id}', [RecommendationAdminController::class, 'destroy'])->name('recommendations.destroy');
     });
 });

@@ -11,13 +11,19 @@ class Product extends Model
 
     protected $fillable = [
         'name',
+        'shortcode',
         'calories',
         'proteins',
         'fats',
         'carbs',
+        'nutrients',
         'serving_label',
         'serving_grams',
         'serving_unit',
+    ];
+
+    protected $casts = [
+        'nutrients' => 'array',
     ];
 
     protected $appends = [
